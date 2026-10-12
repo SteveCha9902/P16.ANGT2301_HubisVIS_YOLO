@@ -1,4 +1,4 @@
-#include "pch.h"
+Ôªø#include "pch.h"
 #include "ConfigManager.h"
 
 #ifdef _DEBUG
@@ -63,7 +63,7 @@ void CConfigManager::InitParameters()
 		m_nImageWidth[idx] = 2448;
 		m_nImageHeight[idx] = 2048;
 		m_nCameraType[idx] = (long)CAMERA_TYPE::ACA244020GM;
-		m_strCameraIP[idx] = _T("192.168.4.2"); // Gige Camera IP √ﬂ∞° - SHK 2023.12.27
+		m_strCameraIP[idx] = _T("192.168.4.2"); // Gige Camera IP Ï∂îÍ∞Ä - SHK 2023.12.27
 		m_nCameraTriggerMode[idx] = (long)TRIGGER_MODE::TRIGGER;
 
 		strTemp.Format(_T("Camara%d"), idx + 1);
@@ -116,9 +116,9 @@ BOOL CConfigManager::LoadParameters(const CString strPath)
 {
 	CString strTemp;
 
-	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL, m_bUseAfterInspectionDL); // 250627 PSJ »ƒ∞ÀªÁ YOLO DeepLearning ªÁøÎ ø©∫Œ
-	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass, m_bManualAutoPass); // Auto pass ±‚¥… configø° µÓ∑œ - PSJ 250228 
-	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass, m_bPLCAutoPass); // Auto pass ±‚¥… configø° µÓ∑œ - PSJ 250228 
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL, m_bUseAfterInspectionDL); // 250627 PSJ ÌõÑÍ≤ÄÏÇ¨ YOLO DeepLearning ÏÇ¨Ïö© Ïó¨Î∂Ä
+	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass, m_bManualAutoPass); // Auto pass Í∏∞Îä• configÏóê Îì±Î°ù - PSJ 250228 
+	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass, m_bPLCAutoPass); // Auto pass Í∏∞Îä• configÏóê Îì±Î°ù - PSJ 250228 
 	HUBSDK::IniReadWriter::Read(strPath, _T("Customer"), _T("Customer"), &m_nCustomer, m_nCustomer);
 	HUBSDK::IniReadWriter::Read(strPath, _T("Software"), _T("Prev. Job File Path"), &m_strPrevRecipeFilePath, m_strPrevRecipeFilePath);
 	HUBSDK::IniReadWriter::Read(strPath, _T("Hardware_Exist"), _T("Hardware Exist"), &m_bHardwareExist, m_bHardwareExist);
@@ -156,14 +156,14 @@ BOOL CConfigManager::LoadParameters(const CString strPath)
 
 	for(long idx = 0; idx < CAMERA_MAX_COUNT; idx++)
 	{
-		strTemp.Format(_T("Image Width %d"), idx + 1); // πˆ±◊ ºˆ¡§- SHK 2023.12.27
+		strTemp.Format(_T("Image Width %d"), idx + 1); // Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
 		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_nImageWidth[idx], m_nImageWidth[idx]);
-		strTemp.Format(_T("Image Height %d"), idx + 1);// πˆ±◊ ºˆ¡§- SHK 2023.12.27
+		strTemp.Format(_T("Image Height %d"), idx + 1);// Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
 		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_nImageHeight[idx], m_nImageHeight[idx]);
 		strTemp.Format(_T("Camera%d Type"), idx + 1);
 		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_nCameraType[idx], m_nCameraType[idx]);
-		strTemp.Format(_T("Camera%d IP"), idx + 1); // Gige Camera IP √ﬂ∞° - SHK 2023.12.27
-		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_strCameraIP[idx], m_strCameraIP[idx]); // Gige Camera IP √ﬂ∞° - SHK 2023.12.27
+		strTemp.Format(_T("Camera%d IP"), idx + 1); // Gige Camera IP Ï∂îÍ∞Ä - SHK 2023.12.27
+		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_strCameraIP[idx], m_strCameraIP[idx]); // Gige Camera IP Ï∂îÍ∞Ä - SHK 2023.12.27
 		strTemp.Format(_T("Camera%d Trigger Mode"), idx + 1);
 		HUBSDK::IniReadWriter::Read(strPath, _T("Hardware"), strTemp, &m_nCameraTriggerMode[idx], m_nCameraTriggerMode[idx]);
 		strTemp.Format(_T("Camera%d Name"), idx + 1);
@@ -179,9 +179,9 @@ BOOL CConfigManager::SaveParameters(const CString strPath)
 {
 	CString strTemp;
 	
-	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL); // 250627 PSJ »ƒ∞ÀªÁ YOLO DeepLearning ªÁøÎ ø©∫Œ
-	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass); // Auto pass ±‚¥… configø° µÓ∑œ - PSJ 250228 
-	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass); // Auto pass ±‚¥… configø° µÓ∑œ - PSJ 250228 
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL); // 250627 PSJ ÌõÑÍ≤ÄÏÇ¨ YOLO DeepLearning ÏÇ¨Ïö© Ïó¨Î∂Ä
+	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass); // Auto pass Í∏∞Îä• configÏóê Îì±Î°ù - PSJ 250228 
+	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass); // Auto pass Í∏∞Îä• configÏóê Îì±Î°ù - PSJ 250228 
 	HUBSDK::IniReadWriter::Write(strPath, _T("Customer"), _T("Customer"), &m_nCustomer);
 	HUBSDK::IniReadWriter::Write(strPath, _T("Software"), _T("Prev. Job File Path"), &m_strPrevRecipeFilePath);
 	HUBSDK::IniReadWriter::Write(strPath, _T("Hardware_Exist"), _T("Hardware Exist"), &m_bHardwareExist);
@@ -189,8 +189,8 @@ BOOL CConfigManager::SaveParameters(const CString strPath)
 	HUBSDK::IniReadWriter::Write(strPath, _T("Index"), _T("Division Index"), &m_nDivisionIndex);
 	HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), _T("LED Com Port"), &m_nLEDComPort);
 	HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), _T("LED Com BaudRate"), &m_nLEDComBaudRate);
-	HUBSDK::IniReadWriter::Write(strPath, _T("Communication"), _T("Use Laser TCPIP"), &m_bUseLaserTCPIP); // πˆ±◊ ºˆ¡§- SHK 2023.12.27
-	HUBSDK::IniReadWriter::Write(strPath, _T("Communication"), _T("Use Laser TCPIP Num"), &m_nLaserTCPIPNum); // πˆ±◊ ºˆ¡§- SHK 2023.12.27
+	HUBSDK::IniReadWriter::Write(strPath, _T("Communication"), _T("Use Laser TCPIP"), &m_bUseLaserTCPIP); // Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
+	HUBSDK::IniReadWriter::Write(strPath, _T("Communication"), _T("Use Laser TCPIP Num"), &m_nLaserTCPIPNum); // Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
 
 	for (long idx = 0; idx < m_nLaserTCPIPNum; idx++)
 	{
@@ -214,14 +214,14 @@ BOOL CConfigManager::SaveParameters(const CString strPath)
 
 	for(long idx = 0; idx < CAMERA_MAX_COUNT; idx++)
 	{
-		strTemp.Format(_T("Image Width %d"), idx + 1); // πˆ±◊ ºˆ¡§- SHK 2023.12.27
+		strTemp.Format(_T("Image Width %d"), idx + 1); // Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
 		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_nImageWidth[idx]);
-		strTemp.Format(_T("Image Height %d"), idx + 1); // πˆ±◊ ºˆ¡§- SHK 2023.12.27
+		strTemp.Format(_T("Image Height %d"), idx + 1); // Î≤ÑÍ∑∏ ÏàòÏ†ï- SHK 2023.12.27
 		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_nImageHeight[idx]);
 		strTemp.Format(_T("Camera%d Type"), idx + 1);
 		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_nCameraType[idx]);
-		strTemp.Format(_T("Camera%d IP"), idx + 1); // Gige Camera IP √ﬂ∞° - SHK 2023.12.27
-		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_strCameraIP[idx]); // Gige Camera IP √ﬂ∞° - SHK 2023.12.27
+		strTemp.Format(_T("Camera%d IP"), idx + 1); // Gige Camera IP Ï∂îÍ∞Ä - SHK 2023.12.27
+		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_strCameraIP[idx]); // Gige Camera IP Ï∂îÍ∞Ä - SHK 2023.12.27
 		strTemp.Format(_T("Camera%d Trigger Mode"), idx + 1);
 		HUBSDK::IniReadWriter::Write(strPath, _T("Hardware"), strTemp, &m_nCameraTriggerMode[idx]);
 		strTemp.Format(_T("Camera%d Name"), idx + 1);

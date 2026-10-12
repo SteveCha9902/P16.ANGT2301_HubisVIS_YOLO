@@ -1,4 +1,4 @@
-// DlgVisionMain.cpp: ±¸Çö ÆÄÀÏ
+ï»¿// DlgVisionMain.cpp: êµ¬í˜„ íŒŒì¼
 //
 
 #include "pch.h"
@@ -25,7 +25,7 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
-// CDlgVisionMain ´ëÈ­ »óÀÚ
+// CDlgVisionMain ëŒ€í™” ìƒì
 
 IMPLEMENT_DYNAMIC(CDlgVisionMain, CDialogEx)
 
@@ -105,7 +105,7 @@ BEGIN_MESSAGE_MAP(CDlgVisionMain, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CDlgVisionMain ¸Ş½ÃÁö Ã³¸®±â
+// CDlgVisionMain ë©”ì‹œì§€ ì²˜ë¦¬ê¸°
 
 BOOL CDlgVisionMain::OnInitDialog()
 {
@@ -113,7 +113,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 
 	CString strTemp;
 
-	// ÇöÀç Æú´õ °¡Á®¿À±â...
+	// í˜„ì¬ í´ë” ê°€ì ¸ì˜¤ê¸°...
 	CString strCurPath, strConfig, strRecipe;
 	GetModuleFileName(nullptr, strCurPath.GetBuffer(_MAX_PATH + 1), _MAX_PATH);
 	strCurPath.ReleaseBuffer();
@@ -123,7 +123,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 	strRecipe.Format(_T("%s\\Recipe"), m_strCurPath);
 	CreateDirectory(strRecipe, nullptr);
 
-	// Log Ã¢ »ı¼º
+	// Log ì°½ ìƒì„±
 	m_pDlgLog = new CDlgLog(this);
 	m_pDlgLog->Create(CDlgLog::IDD, this);
 	m_pDlgLog->ShowWindow(SW_HIDE);
@@ -132,7 +132,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 	::g_Log.SetParent(this);
 	::g_Log.OpenDialog(m_pDlgLog->GetSafeHwnd());
 
-	// Config ÃÊ±âÈ­
+	// Config ì´ˆê¸°í™”
 	::g_ConfigManager.SetCurPath(m_strCurPath);
 	::g_ConfigManager.InitParameters();
 	::g_ConfigManager.LoadConfig();
@@ -141,7 +141,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 	CreateDirectory(::g_ConfigManager.m_strResultImageSavePath, nullptr);
 	CreateDirectory(::g_ConfigManager.m_strResultDataSavePath, nullptr);
 
-	// Calibration ÃÊ±âÈ­
+	// Calibration ì´ˆê¸°í™”
 	::g_CalibrationManager.SetCurPath(m_strCurPath);
 	::g_CalibrationManager.InitParameters();
 	::g_CalibrationManager.LoadCalibration();
@@ -161,10 +161,10 @@ BOOL CDlgVisionMain::OnInitDialog()
 	// Crash dump
 	static HUBSDK::CrashDump g_CrashDump(m_strCurPath + _T("\\MiniDump.dmp"), CDlgVisionMain::UserExceptionHandlerPre, CDlgVisionMain::UserExceptionHandlerPost);
 
-	// Thread »ı¼º
+	// Thread ìƒì„±
 	::g_PLCSocketManager.SetParent(this);
 
-	// Main UI ¼³Á¤¿¡ µû¶ó...
+	// Main UI ì„¤ì •ì— ë”°ë¼...
 	CMenu menu;
 	CRect rtMainRect;
 	switch(::g_ConfigManager.m_nMainUI)
@@ -195,14 +195,14 @@ BOOL CDlgVisionMain::OnInitDialog()
 		break;
 	}
 
-	// ÃÖ±Ù Recipe Open...
+	// ìµœê·¼ Recipe Open...
 	::g_RecipeManager.InitParameters();
 	m_strCurRecipePath = ::g_ConfigManager.m_strPrevRecipeFilePath;
 	m_strCurRecipeName = REMOVE_FOLDER_FROM_PATHNAME(m_strCurRecipePath);
 
 	if(LoadRecipe(m_strCurRecipePath) == FALSE)
 	{
-		strRecipe += _T("\\Default.recipe"); 	// Recipe °æ·Î ¼öÁ¤ - SHK 2023.12.21
+		strRecipe += _T("\\Default.recipe"); 	// Recipe ê²½ë¡œ ìˆ˜ì • - SHK 2023.12.21
 		SaveRecipe(strRecipe);
 		LoadRecipe(strRecipe);
 	}
@@ -218,7 +218,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 
 	SetMenu(&menu);
 
-	// CDlgVisionMain ÀÇ Dialog Å©±â¸¦ Main UI ¿¡ ¸Â°Ô º¯°æÇÏ±â À§ÇØ...
+	// CDlgVisionMain ì˜ Dialog í¬ê¸°ë¥¼ Main UI ì— ë§ê²Œ ë³€ê²½í•˜ê¸° ìœ„í•´...
 	CRect rtWndRect, rtClientRect;
 	GetWindowRect(&rtWndRect);
 	GetClientRect(&rtClientRect);
@@ -228,7 +228,7 @@ BOOL CDlgVisionMain::OnInitDialog()
 	SetWindowPos(NULL, rtMainRect.left, rtMainRect.top, rtMainRect.Width(), rtMainRect.Height(), SWP_NOMOVE);
 	//SetWindowPos(NULL, rtMainRect.left, rtMainRect.top, rtMainRect.Width() + cx, rtMainRect.Height() + cy, SWP_NOMOVE);
 
-	// Thread »ı¼º
+	// Thread ìƒì„±
 	::g_ScanManager.SetParent(this);
 	::g_ScanManager.InitScanManageThread();
 	::g_ScanManager.InitScanThread();
@@ -262,16 +262,16 @@ BOOL CDlgVisionMain::OnInitDialog()
 		}
 	}
 
-	// 60ÃÊ¿¡ ÇÑ¹ø¾¿ Folder Delete È®ÀÎ
+	// 60ì´ˆì— í•œë²ˆì”© Folder Delete í™•ì¸
 	if(::g_ConfigManager.m_bUseDataAutoDelete == TRUE)
 	{
 		SetTimer(FOLDER_DELETE, ::g_ConfigManager.m_nAutoDeleteTimes, NULL);
 	}
 
-	// Laser S/W Á¢¼Ó...
+	// Laser S/W ì ‘ì†...
 	if(::g_ConfigManager.m_bUseLaserTCPIP == TRUE)
 	{
-		// TCP/IP Thread »ı¼º...
+		// TCP/IP Thread ìƒì„±...
 		for(int i = 0; i < nSocketSize; i++)
 		{
 			::g_SocketManager[i].InitThread();
@@ -279,34 +279,34 @@ BOOL CDlgVisionMain::OnInitDialog()
 		SetTimer(LASER_CONNECT, ::g_ConfigManager.m_nLaserAutoConnectTimes, NULL);
 	}
 
-	// PLC Á¢¼Ó...
+	// PLC ì ‘ì†...
 	if(::g_ConfigManager.m_bUsePLCTCPIP == TRUE)
 	{
-		// TCP/IP Thread »ı¼º...
+		// TCP/IP Thread ìƒì„±...
 		::g_PLCSocketManager.InitThread();
 
 		if(::g_ConfigManager.m_bUsePLCTCPIP == TRUE &&
-			::g_PLCSocketManager.m_bTryingServerConnect == FALSE) // Á¢¼Ó ½Ãµµ ÁßÀÏ¶§´Â ´Ù½Ã Á¢¼Ó½ÃµµÇÏÁö ¸»ÀÚ.
+			::g_PLCSocketManager.m_bTryingServerConnect == FALSE) // ì ‘ì† ì‹œë„ ì¤‘ì¼ë•ŒëŠ” ë‹¤ì‹œ ì ‘ì†ì‹œë„í•˜ì§€ ë§ì.
 		{
-			// Á¢¼Ó ½ÃÀÛ
+			// ì ‘ì† ì‹œì‘
 			::SetEvent(::g_PLCSocketManager.m_Control_Client.m_hSignal_Start);
 		}
 
 		SetTimer(PLC_LINK, 500, NULL);
 	}
 
-	// PLC Monitering UI »ı¼º...
+	// PLC Monitering UI ìƒì„±...
 	m_pDlgPLCMonitering = new CDlgPLCMonitering(this);
 	m_pDlgPLCMonitering->Create(CDlgPLCMonitering::IDD, this);
 	m_pDlgPLCMonitering->ShowWindow(SW_HIDE);
 
-	// ½Ç½Ã°£ ½Ã°è Ç¥½Ã
+	// ì‹¤ì‹œê°„ ì‹œê³„ í‘œì‹œ
 	SetTimer(REAL_TIME, 1000, NULL);
 
-	// ÇÁ·Î±×·¥ ¹öÀü Ç¥½Ã
+	// í”„ë¡œê·¸ë¨ ë²„ì „ í‘œì‹œ
 	SetVersion(m_strCurRecipeName);
 
-	return TRUE;  // Æ÷Ä¿½º¸¦ ÄÁÆ®·Ñ¿¡ ¼³Á¤ÇÏÁö ¾ÊÀ¸¸é TRUE¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
+	return TRUE;  // í¬ì»¤ìŠ¤ë¥¼ ì»¨íŠ¸ë¡¤ì— ì„¤ì •í•˜ì§€ ì•Šìœ¼ë©´ TRUEë¥¼ ë°˜í™˜í•©ë‹ˆë‹¤.
 }
 
 BOOL CDlgVisionMain::PreTranslateMessage(MSG* pMsg)
@@ -333,25 +333,25 @@ void CDlgVisionMain::OnTimer(UINT_PTR nIDEvent)
 		::SetEvent(::g_FileManager.m_Control_File_Delete.m_hSignal_Start);
 	}
 	break;
-	case CTRL_CONNECT: // PLC ¿Í ¿¬°á
+	case CTRL_CONNECT: // PLC ì™€ ì—°ê²°
 	{
 		if(::g_ConfigManager.m_bUsePLCTCPIP == TRUE &&
-			::g_PLCSocketManager.m_bTryingServerConnect == FALSE) // Á¢¼Ó ½Ãµµ ÁßÀÏ¶§´Â ´Ù½Ã Á¢¼Ó½ÃµµÇÏÁö ¸»ÀÚ.
+			::g_PLCSocketManager.m_bTryingServerConnect == FALSE) // ì ‘ì† ì‹œë„ ì¤‘ì¼ë•ŒëŠ” ë‹¤ì‹œ ì ‘ì†ì‹œë„í•˜ì§€ ë§ì.
 		{
-			// Á¢¼Ó ½ÃÀÛ
+			// ì ‘ì† ì‹œì‘
 			::SetEvent(::g_PLCSocketManager.m_Control_Client.m_hSignal_Start);
 		}
 	}
 	break;
-	case LASER_CONNECT: // Laser S/W ¿Í ¿¬°á
+	case LASER_CONNECT: // Laser S/W ì™€ ì—°ê²°
 	{
 		long nSocketSize = ::g_ConfigManager.m_nLaserTCPIPNum;
 		for(int i = 0; i < nSocketSize; i++)
 		{
 			if(::g_ConfigManager.m_bUseLaserTCPIP == TRUE &&
-				::g_SocketManager[i].m_bTryingServerConnect == FALSE) // Á¢¼Ó ½Ãµµ ÁßÀÏ¶§´Â ´Ù½Ã Á¢¼Ó½ÃµµÇÏÁö ¸»ÀÚ.
+				::g_SocketManager[i].m_bTryingServerConnect == FALSE) // ì ‘ì† ì‹œë„ ì¤‘ì¼ë•ŒëŠ” ë‹¤ì‹œ ì ‘ì†ì‹œë„í•˜ì§€ ë§ì.
 			{
-				// Á¢¼Ó ½ÃÀÛ
+				// ì ‘ì† ì‹œì‘
 				::SetEvent(::g_SocketManager[i].m_Control_Client.m_hSignal_Start);
 			}
 		}
@@ -533,8 +533,8 @@ void CDlgVisionMain::OnFileRecipesave()
 		}
 
 		::g_Log.Log(_T("============================================================================================================"), m_strCurRecipeName);
-		::g_Log.Log(_T("Save Recipe====> ·¹½ÃÇÇ ÀúÀå°æ·Î : %s <======"), m_strCurRecipePath);
-		::g_Log.Log(_T("Save Recipe====> ÇöÀç ¿­°í ÀÖ´Â ·¹½ÃÇÇ ÀÌ¸§ : %s <======"), m_strCurRecipeName);
+		::g_Log.Log(_T("Save Recipe====> ë ˆì‹œí”¼ ì €ì¥ê²½ë¡œ : %s <======"), m_strCurRecipePath);
+		::g_Log.Log(_T("Save Recipe====> í˜„ì¬ ì—´ê³  ìˆëŠ” ë ˆì‹œí”¼ ì´ë¦„ : %s <======"), m_strCurRecipeName);
 		::g_Log.Log(_T("============================================================================================================"), m_strCurRecipeName);
 	}
 }
@@ -656,24 +656,24 @@ BOOL CDlgVisionMain::LoadRecipe(const LPCTSTR szPathName)
 	CString strTemp;
 	strTemp.Format(_T("%s"), szPathName);
 
-	m_strCurRecipeName = REMOVE_FOLDER_FROM_PATHNAME(strTemp);//LYS 241011 PLCÀâ³Ñ¹ö È£Ãâ
+	m_strCurRecipeName = REMOVE_FOLDER_FROM_PATHNAME(strTemp);//LYS 241011 PLCì¡ë„˜ë²„ í˜¸ì¶œ
 
-	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("Current Recipe Name : %s"), m_strCurRecipeName);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("Recipe Load Path : %s"), szPathName);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logÃß°¡
+	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("Current Recipe Name : %s"), m_strCurRecipeName);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("Recipe Load Path : %s"), szPathName);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logì¶”ê°€
 
-	// ÇØ´ç ÆÄÀÏÀÌ ÀÖ´ÂÁö °Ë»çÇÑ´Ù...
+	// í•´ë‹¹ íŒŒì¼ì´ ìˆëŠ”ì§€ ê²€ì‚¬í•œë‹¤...
 	CFileFind Find;
 	BOOL bRet = Find.FindFile(szPathName);
 	
 	if(bRet == TRUE)
 	{
-		::g_Log.Log(_T("Recipe FIle Find Success"));// 250712 sjpark °Ë»çÀåºñ Á¤Áö °ü·Ã logÃß°¡, ¿©±â¼­ True ³ª¿ÍÁà¾ß Recipe Á¤»ó ¿ÀÇÂ
+		::g_Log.Log(_T("Recipe FIle Find Success"));// 250712 sjpark ê²€ì‚¬ì¥ë¹„ ì •ì§€ ê´€ë ¨ logì¶”ê°€, ì—¬ê¸°ì„œ True ë‚˜ì™€ì¤˜ì•¼ Recipe ì •ìƒ ì˜¤í”ˆ
 		::g_RecipeManager.InitParameters();
 		if(::g_RecipeManager.LoadRecipeParameters(szPathName) == FALSE)
 		{
-			::g_Log.Log(_T("Load Recipe Parameter Set Fail"));// 250712 sjpark °Ë»çÀåºñ Á¤Áö °ü·Ã logÃß°¡, ¿©±â¼­ True ³ª¿ÍÁà¾ß Recipe Á¤»ó ¿ÀÇÂ
+			::g_Log.Log(_T("Load Recipe Parameter Set Fail"));// 250712 sjpark ê²€ì‚¬ì¥ë¹„ ì •ì§€ ê´€ë ¨ logì¶”ê°€, ì—¬ê¸°ì„œ True ë‚˜ì™€ì¤˜ì•¼ Recipe ì •ìƒ ì˜¤í”ˆ
 			return FALSE;			
 		}
 
@@ -696,7 +696,7 @@ BOOL CDlgVisionMain::LoadRecipe(const LPCTSTR szPathName)
 	}
 	else
 	{
-		::g_Log.Log(_T("Recipe FIle Find Fail"));// 250712 sjpark °Ë»çÀåºñ Á¤Áö °ü·Ã logÃß°¡, ¿©±â¼­ True ³ª¿ÍÁà¾ß Recipe Á¤»ó ¿ÀÇÂ
+		::g_Log.Log(_T("Recipe FIle Find Fail"));// 250712 sjpark ê²€ì‚¬ì¥ë¹„ ì •ì§€ ê´€ë ¨ logì¶”ê°€, ì—¬ê¸°ì„œ True ë‚˜ì™€ì¤˜ì•¼ Recipe ì •ìƒ ì˜¤í”ˆ
 		m_pDlgMain2->SetResultGrid();
 		return FALSE;
 	}
@@ -708,10 +708,10 @@ BOOL CDlgVisionMain::SaveRecipe(const LPCTSTR szPathName)
 	::g_RecipeManager.SaveRecipeParameters(szPathName);
 
 	::g_ConfigManager.m_strPrevRecipeFilePath = szPathName;
-	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("Recipe save path   : %s"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("Current Recipe Name: %s"), m_strCurRecipeName);//LYS 241016 logÃß°¡
-	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logÃß°¡
+	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("Recipe save path   : %s"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("Current Recipe Name: %s"), m_strCurRecipeName);//LYS 241016 logì¶”ê°€
+	::g_Log.Log(_T("----------------------------------------------------------------------"), ::g_ConfigManager.m_strPrevRecipeFilePath);//LYS 241016 logì¶”ê°€
 	::g_ConfigManager.SaveConfig();
 
 	::AfxMessageBox(_T("Save Complete..."));
@@ -740,7 +740,7 @@ BOOL CDlgVisionMain::ImageOpen(const CString strPath, const long camindex, const
 
 	BYTE* image = ::g_MemoryManager.GetByteImage(index);
 
-	// ºÒ·¯¿Â image¸¦ ¸ğµç buffer¿¡ º¹»ç
+	// ë¶ˆëŸ¬ì˜¨ imageë¥¼ ëª¨ë“  bufferì— ë³µì‚¬
 	memcpy(image, pbyBuffer, m_nImageSize);
 
 	HUBIPHelper::FreeMemory(pbyBuffer);
@@ -797,7 +797,7 @@ void CDlgVisionMain::ShowUser(const long index)
 
 CString CDlgVisionMain::SetVersion(const CString strRecipeName, BOOL bDisplay)
 {
-	// Version Á¤º¸ °¡Á®¿À±â...
+	// Version ì •ë³´ ê°€ì ¸ì˜¤ê¸°...
 	TCHAR path[_MAX_PATH];
 
 	GetModuleFileName(NULL, path, sizeof(path));
@@ -806,7 +806,7 @@ CString CDlgVisionMain::SetVersion(const CString strRecipeName, BOOL bDisplay)
 	CString strProductVersion;
 	CString strTitle;
 
-	// È¸»çÀÌ¸§, °Ë»ç ÇÁ·Î±×·¥ ÀÌ¸§, ¹öÀüÁ¤º¸ Ãâ·ÂÇØÁÖ±â...
+	// íšŒì‚¬ì´ë¦„, ê²€ì‚¬ í”„ë¡œê·¸ë¨ ì´ë¦„, ë²„ì „ì •ë³´ ì¶œë ¥í•´ì£¼ê¸°...
 	CFile file;
 	CFileException fe;
 	CString str;
@@ -842,7 +842,7 @@ CString CDlgVisionMain::SetVersion(const CString strRecipeName, BOOL bDisplay)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Message °ü·Ã...
+// Message ê´€ë ¨...
 LRESULT CDlgVisionMain::OnUpdateImage(WPARAM wParam, LPARAM lParam)
 {
 	long camIndex = (long)wParam;
@@ -892,15 +892,15 @@ LRESULT CDlgVisionMain::OnUpdateResult(WPARAM wParam, LPARAM lParam)
 		break;
 	case (long)MAINUI::UI_FOR_DUAL_CAMERA:
 		dispIndex = camIndex + divIndex * 2;
-		m_pDlgMain2->SetImageOverlay(camIndex, inspIndex); // º¯°æ Áß
-		// °¢ ÆÄÆ®º°·Îµµ AutoPass ±â´É Ãß°¡ - 250228 PSJ
-		if(::g_ConfigManager.m_bPLCAutoPass == FALSE) // PLC¿¡¼­ Auto·Î ÇÒ °æ¿ì¸¸ Àû¿ë
-			m_pDlgMain2->SetResult(dispIndex, ::g_InspectionManager.m_vecpInspection[inspIndex]->m_strTotalResult); // ±âÁ¸
+		m_pDlgMain2->SetImageOverlay(camIndex, inspIndex); // ë³€ê²½ ì¤‘
+		// ê° íŒŒíŠ¸ë³„ë¡œë„ AutoPass ê¸°ëŠ¥ ì¶”ê°€ - 250228 PSJ
+		if(::g_ConfigManager.m_bPLCAutoPass == FALSE) // PLCì—ì„œ Autoë¡œ í•  ê²½ìš°ë§Œ ì ìš©
+			m_pDlgMain2->SetResult(dispIndex, ::g_InspectionManager.m_vecpInspection[inspIndex]->m_strTotalResult); // ê¸°ì¡´
 		else
-			m_pDlgMain2->SetResult(dispIndex, _T("OK")); // AutoPass ±â´É Àû¿ë½Ã OK ·Î °­Á¦·Î Àû¿ëµÇµµ·Ï ¼öÁ¤
+			m_pDlgMain2->SetResult(dispIndex, _T("OK")); // AutoPass ê¸°ëŠ¥ ì ìš©ì‹œ OK ë¡œ ê°•ì œë¡œ ì ìš©ë˜ë„ë¡ ìˆ˜ì •
 
 
-		// Main UI ¿¡ Á¤º¸Ç¥½Ã...//LYS 241010 Ã¹ À§Ä¡ÀÏ¶§ ´Ù¸¥°ª´Ù ÃÊ±âÈ­
+		// Main UI ì— ì •ë³´í‘œì‹œ...//LYS 241010 ì²« ìœ„ì¹˜ì¼ë•Œ ë‹¤ë¥¸ê°’ë‹¤ ì´ˆê¸°í™”
 		if (divIndex == 1) {
 			m_pDlgMain2->InitResultGrid();
 		}
@@ -983,7 +983,7 @@ LRESULT CDlgVisionMain::OnUpdateCtrlStatus(WPARAM wParam, LPARAM lParam)
 
 LRESULT CDlgVisionMain::OnUpdateRecipeUpdate(WPARAM wParam, LPARAM lParam)	// wParam = ScanCount, lParam = JobNumber
 {
-	long recipeIndex = (long)lParam; // m_nJobNumber - 1 ... Recipe Resist¿¡¼­´Â 1¹øºÎÅÍ ½ÃÀÛÇÔ.
+	long recipeIndex = (long)lParam; // m_nJobNumber - 1 ... Recipe Resistì—ì„œëŠ” 1ë²ˆë¶€í„° ì‹œì‘í•¨.
 	CString strRecipe;
 	strRecipe.Format(_T("%s\\Recipe\\%s"), m_strCurPath, ::g_PLCManager.m_vecstrUseRecipe[recipeIndex]);
 	
@@ -993,14 +993,14 @@ LRESULT CDlgVisionMain::OnUpdateRecipeUpdate(WPARAM wParam, LPARAM lParam)	// wP
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// CrashDump °ü·Ã...
+// CrashDump ê´€ë ¨...
 void CDlgVisionMain::UserExceptionHandlerPre()
 {
 }
 
 void CDlgVisionMain::UserExceptionHandlerPost()
 {
-	// ÇöÀç Æú´õ °¡Á®¿À±â...
+	// í˜„ì¬ í´ë” ê°€ì ¸ì˜¤ê¸°...
 	CString strCurPath;
 	GetModuleFileName(nullptr, strCurPath.GetBuffer(_MAX_PATH + 1), _MAX_PATH);
 	strCurPath.ReleaseBuffer();

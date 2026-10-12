@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <deque>
 #include <vector>
@@ -78,7 +78,7 @@ public:
 	CString GetRawImageSaveFolder(const SDataSaveJob& job);
 	void CreateDirectoryRecursive(const CString strPath);
 	void RawImageSaveJob(const SDataSaveJob& job);
-	void ResultDataSave(const BOOL bManualInspection = FALSE); // csvÇü½Ä
+	void ResultDataSave(const BOOL bManualInspection = FALSE); // csví˜•ì‹
 	void ResultImageSave(const BOOL bManualInspection = FALSE);
 	void RawImageSave(const BOOL bManualInspection = FALSE);
 	void RawImageSave2(const BOOL bManualInspection = FALSE);
@@ -98,16 +98,16 @@ public:
 	void ThreadDataSave();
 
 	////////////////////////////////////////////////////////////////////////////////
-	// Àåºñ, ¾÷Ã¼¸¶´Ù ÀúÀåÇÒ Data°¡ ´Ù¸£¹Ç·Î
-	// Borgwarner Çâ ¹ö½º¹Ù ¿ëÁ¡±â Àü¿ë ResultDataSave
+	// ì¥ë¹„, ì—…ì²´ë§ˆë‹¤ ì €ì¥í•  Dataê°€ ë‹¤ë¥´ë¯€ë¡œ
+	// Borgwarner í–¥ ë²„ìŠ¤ë°” ìš©ì ê¸° ì „ìš© ResultDataSave
 	void ResultDataSave_forBorgWarner(const CString strPath);
 	////////////////////////////////////////////////////////////////////////////////
 
 	int m_ImageCount = 0;
 	CString m_strCurrentSaveFolder;
 	CString m_strCurrentBarcode;
-	CString m_strCurrentImageName; // 250619 sjpark ÀúÀåµÇ´Â ÀÌ¹ÌÁö ÀÌ¸§ º¯¼ö Ãß°¡
-	CString m_strYOLOResultImageName; // 250620 sjpark °á°úÀÌ¹ÌÁö º¯¼ö Ãß°¡
+	CString m_strCurrentImageName; // 250619 sjpark ì €ì¥ë˜ëŠ” ì´ë¯¸ì§€ ì´ë¦„ ë³€ìˆ˜ ì¶”ê°€
+	CString m_strYOLOResultImageName; // 250620 sjpark ê²°ê³¼ì´ë¯¸ì§€ ë³€ìˆ˜ ì¶”ê°€
 	CString MakeYOLOResultPath(const CString& originalPath);
 };
 
