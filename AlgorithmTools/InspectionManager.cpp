@@ -232,6 +232,9 @@ void CInspectionManager::ThreadInspection()
 	}
 }
 
+// 5단계 결과 완료 장벽용 카운터 (PLCSocketManager.cpp). SEND_DATA를 마칠 때마다 1 증가
+extern volatile LONG g_lPlcResultCommitCount;
+
 void CInspectionManager::StartInsp(const long threadIndex, const long camIndex, const long divIndex, const CString barcode, const CString scanTime)
 {
 	CString strTemp;
@@ -345,6 +348,9 @@ void CInspectionManager::RunInsp(const long threadIndex)
 				m_vecpInspection[threadIndex]->m_vecCriteriaResult, divIndex);
 			break;
 		}
+
+		// 결과 기록 완료 알림: PLC 스레드는 카메라 수만큼 완료된 뒤 REQ_Insp_Move를 켠다 (빈 결과도 완료로 계산)
+		InterlockedIncrement(&g_lPlcResultCommitCount);
 
 		inspStep = INSP_SEQUENCE::SAVE_RESULT_IMAGE;
 	}

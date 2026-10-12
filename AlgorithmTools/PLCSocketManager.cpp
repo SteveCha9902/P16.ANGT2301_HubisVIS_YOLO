@@ -13,6 +13,7 @@
 #define PLC_START_REQ_OFF_WAIT_MS 1000		// RESP_Insp_Start ON 후 REQ_Insp_Start OFF 확인 대기 상한
 #define PLC_MOVE_RESP_WARN_MS 500			// REQ_Insp_Move ON 후 RESP 미수신 경고 (정상 최대 약 177 ms)
 #define PLC_MOVE_RESP_ALARM_MS 5000			// REQ_Insp_Move ON 후 RESP 미수신 시 ALARM ON
+#define PLC_RESULT_BARRIER_TIMEOUT_MS 2000	// 5단계: 검사 결과 기록 완료 대기 상한 (초과 시 NG + ALARM)
 #define PLC_WAIT_SLICE_MS 50				// 스캔 대기 중 LinkTest 처리 간격
 
 #ifdef _DEBUG
@@ -30,6 +31,10 @@ static DWORD s_dwStartRespOnTick = 0;
 static BOOL s_bMoveRespWarned = FALSE;	// 현재 Move 요청에 대해 미응답 경고를 남겼는지
 static BOOL s_bMoveAlarmOn = FALSE;		// Move 미응답으로 ALARM을 켰는지
 static BOOL s_bInitRespOn = FALSE;		// RESP_Initialize ON 유지 중 (REQ_Initialize OFF 확인 후 OFF)
+static BOOL s_bResultAlarmOn = FALSE;	// 결과 기록 대기 초과로 ALARM을 켰는지 (다음 Start에서 해제)
+
+// 5단계 결과 완료 장벽: 검사 스레드(InspectionManager.cpp)가 SEND_DATA를 마칠 때마다 증가시킨다.
+volatile LONG g_lPlcResultCommitCount = 0;
 
 // UI 타이머가 요청한 LinkTest 값을 PLC에 쓴다.
 // 스캔 대기 중에도 호출해 PLC의 LinkTest 감시(5 s)에 걸리지 않게 한다.
@@ -329,13 +334,14 @@ void CPLCSocketManager::MessageProcess()
 					m_dwMoveReqOnTick = 0;
 				}
 			}
-			if(s_bMoveAlarmOn == TRUE)
+			if(s_bMoveAlarmOn == TRUE || s_bResultAlarmOn == TRUE)
 			{
 				BOOL bAlarmOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::OFF);
 				::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d New Start - Write 30200.4 PLC_DO_ALARM OFF ret:%d"), startContext.seq, bAlarmOffRet);
 				if(bAlarmOffRet != FALSE)
 				{
 					s_bMoveAlarmOn = FALSE;
+					s_bResultAlarmOn = FALSE;
 				}
 			}
 
@@ -497,7 +503,7 @@ void CPLCSocketManager::MessageProcess()
 				m_bMoveReqOn = FALSE;
 				m_dwMoveReqOnTick = 0;
 
-				if(bLogMoveOff == TRUE && s_bMoveAlarmOn == TRUE)
+				if(bLogMoveOff == TRUE && s_bMoveAlarmOn == TRUE && s_bResultAlarmOn == FALSE)
 				{
 					BOOL bAlarmOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::OFF);
 					::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d RESP_Insp_Move received - Write 30200.4 PLC_DO_ALARM OFF ret:%d"), m_nStartSignalSeq, bAlarmOffRet);
@@ -671,6 +677,7 @@ void CPLCSocketManager::MessageProcessSimul(int nCameraIndex, int nDivIndex, int
 void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, const CString barcode)
 {
 	DWORD dwScanStartBeginTick = GetTickCount();
+	const LONG lResultBase = InterlockedCompareExchange(&g_lPlcResultCommitCount, 0, 0);	// 5단계: 이번 스캔 결과 완료 기준점
 	CString cycleBarcode = barcode;
 	if(cycleBarcode == _T(""))
 	{
@@ -784,6 +791,33 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 	else
 	{
 		::g_ScanManager.m_bScanDone = TRUE;
+
+		// 5단계 결과 완료 장벽 (PLC 회신 R1·R5): PLC는 REQ_Insp_Move OFF 직후 결과를 읽으므로,
+		// 이번 스캔의 모든 카메라 검사가 결과 전송(SEND_DATA)을 마친 뒤 REQ_Insp_Move를 켠다 (빈 결과도 완료로 계산).
+		const LONG lResultExpected = (LONG)vechScanThread.size();
+		DWORD dwResultWaitTick = GetTickCount();
+		LONG lResultCommitted = InterlockedCompareExchange(&g_lPlcResultCommitCount, 0, 0) - lResultBase;
+		while(lResultCommitted < lResultExpected && GetTickCount() - dwResultWaitTick < PLC_RESULT_BARRIER_TIMEOUT_MS)
+		{
+			WaitWithLinkTest(this, 0, nullptr, FALSE, 5);	// 대기 중에도 LinkTest 유지
+			lResultCommitted = InterlockedCompareExchange(&g_lPlcResultCommitCount, 0, 0) - lResultBase;
+		}
+		DWORD dwResultWait = GetTickCount() - dwResultWaitTick;
+		if(lResultCommitted < lResultExpected)
+		{
+			BOOL bNgRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 2);
+			BOOL bAlarmRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::ON);
+			if(bAlarmRet != FALSE)
+			{
+				s_bResultAlarmOn = TRUE;
+			}
+			::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d Inspection results not complete within %lu ms (%d/%d) - Write 30210 InspRet NG ret:%d, 30200.4 PLC_DO_ALARM ON ret:%d"),
+				m_nStartSignalSeq, (unsigned long)dwResultWait, lResultCommitted, lResultExpected, bNgRet, bAlarmRet);
+		}
+		else
+		{
+			::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d Inspection results ready %d/%d resultWait:%lu ms"), m_nStartSignalSeq, lResultCommitted, lResultExpected, (unsigned long)dwResultWait);
+		}
 
 		// RESP_Insp_Start는 Start 4-phase에서 REQ OFF 확인 후 끈다 (여기서 강제로 끄지 않음)
 		DWORD dwMoveWriteTick = GetTickCount();
