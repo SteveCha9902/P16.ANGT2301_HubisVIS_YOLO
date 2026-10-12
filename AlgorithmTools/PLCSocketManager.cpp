@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "PLCSocketManager.h"
 #include "../VisionMain/DlgVisionMain.h"
 
@@ -51,7 +51,7 @@ CPLCSocketManager::~CPLCSocketManager()
 
 void CPLCSocketManager::InitThread()
 {
-	// Client Thread ÃÊ±âÈ­
+	// Client Thread ì´ˆê¸°í™”
 	m_Control_Client.m_hSignal_Start = CreateEvent(NULL, FALSE, FALSE, NULL);
 	m_Control_Client.m_hSignal_Kill = CreateEvent(NULL, FALSE, FALSE, NULL);
 	m_Control_Client.m_Handle_Thread = INVALID_HANDLE_VALUE;
@@ -63,21 +63,21 @@ void CPLCSocketManager::InitThread()
 void CPLCSocketManager::FreeThread()
 {
 
-	// ¸ğµç ¾²·¹µå¿¡°Ô ÀÏÀ» ±×¸¸ÇÏ¶ó°í ¾Ë¸°´Ù.
+	// ëª¨ë“  ì“°ë ˆë“œì—ê²Œ ì¼ì„ ê·¸ë§Œí•˜ë¼ê³  ì•Œë¦°ë‹¤.
 	::SetEvent(m_Control_Client.m_hSignal_Kill);
 	if(m_pCtrlPLC != nullptr)
 	{
 		m_pCtrlPLC->Disconnect();
 	}
 
-	// ¾²·¹µå°¡ Á¾·áµÇ±â¸¦ ±â´Ù¸°´Ù.
+	// ì“°ë ˆë“œê°€ ì¢…ë£Œë˜ê¸°ë¥¼ ê¸°ë‹¤ë¦°ë‹¤.
 	DWORD dwWaitRet = ::WaitForSingleObject(m_Control_Client.m_Handle_Thread, 5000);
 	if(dwWaitRet != WAIT_OBJECT_0)
 	{
 		::g_Log.Log(_T("[THREAD_DIAG][ERROR] PLC thread stop timeout - Ret:%lu"), dwWaitRet);
 	}
 
-	// °ü·Ã ÇÚµéÀ» ¸ğµÎ ´İ´Â´Ù.
+	// ê´€ë ¨ í•¸ë“¤ì„ ëª¨ë‘ ë‹«ëŠ”ë‹¤.
 	::CloseHandle(m_Control_Client.m_hSignal_Kill);
 	::CloseHandle(m_Control_Client.m_Handle_Thread);
 	::CloseHandle(m_Control_Client.m_hSignal_Start);
@@ -91,7 +91,7 @@ void CPLCSocketManager::SetParent(CDlgVisionMain* pParent)
 	m_pCtrlPLC->Initialize();
 }
 
-// Å¬¶óÀÌ¾ğÆ® ½º·¹µå ÇÔ¼ö
+// í´ë¼ì´ì–¸íŠ¸ ìŠ¤ë ˆë“œ í•¨ìˆ˜
 UINT CPLCSocketManager::ThreadClientFunc(LPVOID pParam)
 {
 	CPLCSocketManager *pProcessClientThread = (CPLCSocketManager *)pParam;
@@ -101,10 +101,10 @@ UINT CPLCSocketManager::ThreadClientFunc(LPVOID pParam)
 	return 0;
 }
 
-// Å¬¶óÀÌ¾ğÆ® ½º·¹µå
+// í´ë¼ì´ì–¸íŠ¸ ìŠ¤ë ˆë“œ
 void CPLCSocketManager::ThreadClient()
 {
-	// Å¬¶óÀÌ¾ğÆ® Thread Handle
+	// í´ë¼ì´ì–¸íŠ¸ Thread Handle
 	HANDLE pHandles[2] = {m_Control_Client.m_hSignal_Start, m_Control_Client.m_hSignal_Kill};
 
 	::g_Log.Log(_T("PLC Client Thread : Thread Ready"));
@@ -113,7 +113,7 @@ void CPLCSocketManager::ThreadClient()
 	{
 		DWORD dwRet = ::WaitForMultipleObjects(2, pHandles, FALSE, INFINITE);
 
-		// Å¬¶óÀÌ¾ğÆ® ½ÃÀÛ
+		// í´ë¼ì´ì–¸íŠ¸ ì‹œì‘
 		if(dwRet == WAIT_OBJECT_0)
 		{
 			m_bTryingServerConnect = TRUE;
@@ -125,7 +125,7 @@ void CPLCSocketManager::ThreadClient()
 
 				::g_Log.Log(_T("PLC Client Thread : Attempt to connect to %s:%d failed, server not found."), ::g_ConfigManager.m_strPLCIP, ::g_ConfigManager.m_nPLCPort);
 
-				// ¾ÆÀÌÄÜ »óÅÂ º¯°æ
+				// ì•„ì´ì½˜ ìƒíƒœ ë³€ê²½
 				::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_CTRL_STATUS, 0, FALSE);
 			}
 			else
@@ -135,10 +135,10 @@ void CPLCSocketManager::ThreadClient()
 
 				::g_Log.Log(_T("PLC Client Thread : Connected to %s:%d."), ::g_ConfigManager.m_strPLCIP, ::g_ConfigManager.m_nPLCPort);
 
-				// ¾ÆÀÌÄÜ »óÅÂ º¯°æ
+				// ì•„ì´ì½˜ ìƒíƒœ ë³€ê²½
 				::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_CTRL_STATUS, 0, TRUE);
 
-				// PLC¿Í µ¥ÀÌÅÍ Åë½Å
+				// PLCì™€ ë°ì´í„° í†µì‹ 
 				while (1)
 				{
 					BOOL bRet = m_pCtrlPLC->ReadPLC2VisionData();
@@ -162,14 +162,14 @@ void CPLCSocketManager::ThreadClient()
 
 					if (bRet == FALSE)
 					{
-						//ÀĞ±â ½ÇÆĞ
+						//ì½ê¸° ì‹¤íŒ¨
 						m_bConnect = FALSE;
 						m_bTryingServerConnect = FALSE;
 
-						// Á¢¼ÓÀÌ ²÷°åÀ» °æ¿ì ´Ù½Ã Å¸ÀÌ¸Ó¸¦ ½ÃÀÛÇØ¼­ ¼­¹ö¸¦ Ã£´Â´Ù.
+						// ì ‘ì†ì´ ëŠê²¼ì„ ê²½ìš° ë‹¤ì‹œ íƒ€ì´ë¨¸ë¥¼ ì‹œì‘í•´ì„œ ì„œë²„ë¥¼ ì°¾ëŠ”ë‹¤.
 						m_pParent->SetTimer(CTRL_CONNECT, ::g_ConfigManager.m_nPLCAutoConnectTimes, NULL);
 
-						// ¾ÆÀÌÄÜ »óÅÂ º¯°æ
+						// ì•„ì´ì½˜ ìƒíƒœ ë³€ê²½
 						::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_CTRL_STATUS, 0, FALSE);
 
 						break;
@@ -237,15 +237,15 @@ void CPLCSocketManager::MessageProcess()
 	{
 	case (long)CUSTOMER::BORGWARNER:
 	{
-		// Get Data : ÇÊ¿äÇÑ ºÎºĞ Ãß°¡ ÇÊ¿ä
-		// ::g_PLCManager.GetReadData();  // 251029 sjpark Áßº¹ ºÒ·¯¿À±â ÀÌ½´°¡ ÀÖ¾îº¸¿©¼­ ÀÏ´Ü ÁÖ¼®Ã³¸®
+		// Get Data : í•„ìš”í•œ ë¶€ë¶„ ì¶”ê°€ í•„ìš”
+		// ::g_PLCManager.GetReadData();  // 251029 sjpark ì¤‘ë³µ ë¶ˆëŸ¬ì˜¤ê¸° ì´ìŠˆê°€ ìˆì–´ë³´ì—¬ì„œ ì¼ë‹¨ ì£¼ì„ì²˜ë¦¬
 
 		// ScanStart
 		if(bStartRising == TRUE)
 		{
-			// Scan ½ÅÈ£ ¹Ş¾ÒÀ¸´Ï Àß ¹Ş¾Ò´Ù°í ¾Ë·ÁÁÖÀÚ
-			// JobNumber È®ÀÎ, °Ë»ç°á°ú ÃÊ±âÈ­, InspStart ON È®ÀÎ ÇÏ¸é PLC InspStart¸¦ OFF ÇÑ´Ù.
-			// ±× ÈÄ¿¡ Scan Start ½ÃÀÛ
+			// Scan ì‹ í˜¸ ë°›ì•˜ìœ¼ë‹ˆ ì˜ ë°›ì•˜ë‹¤ê³  ì•Œë ¤ì£¼ì
+			// JobNumber í™•ì¸, ê²€ì‚¬ê²°ê³¼ ì´ˆê¸°í™”, InspStart ON í™•ì¸ í•˜ë©´ PLC InspStartë¥¼ OFF í•œë‹¤.
+			// ê·¸ í›„ì— Scan Start ì‹œì‘
 			DWORD dwResponseBeginTick = GetTickCount();
 			DWORD dwReqElapsed = (startContext.reqOnTick == 0) ? 0 : (dwResponseBeginTick - startContext.reqOnTick);
 			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Start Response Begin - REQ[30301.1] elapsed:%lu ms, Job:%d, Cam:%d, Div:%d, Barcode:%s"), startContext.seq, (unsigned long)dwReqElapsed, startContext.jobNumber, startContext.cameraIndex, startContext.divIndex, startContext.barcode);
@@ -301,7 +301,7 @@ void CPLCSocketManager::MessageProcess()
 				::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d Start Response delayed - total:%lu ms"), startContext.seq, (unsigned long)dwResponseTotal);
 			}
 
-			// m_nJobNumber ¿¹¿ÜÃ³¸®
+			// m_nJobNumber ì˜ˆì™¸ì²˜ë¦¬
 			if(startContext.jobNumber <= 0 || (long)::g_PLCManager.m_vecstrUseRecipe.size() < startContext.jobNumber)
 			{
 				::g_Log.Log(_T("PLC -> Vision::JobNumber Error(PLC:%d, Vision Max:%d)"), startContext.jobNumber, (long)::g_PLCManager.m_vecstrUseRecipe.size());
@@ -331,8 +331,8 @@ void CPLCSocketManager::MessageProcess()
 			}
 			else
 			{
-				// 250711 TODO: ÇöÀå¿¡¼­ ÇØ´ç ºÎºĞ °¡Àå ¸ÕÀú Ã¼Å© ÇÊ¿ä 
-				::g_Log.Log(_T("PLC Recipe Load Fail")); // ÇØ´ç ·Î±× ÀÖ´ÂÁö È®ÀÎÇØº¸°í  ¾øÀ¸¸é PLC ¾Ë¶÷ ¶ç¿ö´Ş¶ó ¿äÃ».. ÇÊ¿äÇÑ °æ¿ì ¾Æ·¡ ÁÖ¼® »ç¿ë
+				// 250711 TODO: í˜„ì¥ì—ì„œ í•´ë‹¹ ë¶€ë¶„ ê°€ì¥ ë¨¼ì € ì²´í¬ í•„ìš” 
+				::g_Log.Log(_T("PLC Recipe Load Fail")); // í•´ë‹¹ ë¡œê·¸ ìˆëŠ”ì§€ í™•ì¸í•´ë³´ê³   ì—†ìœ¼ë©´ PLC ì•ŒëŒ ë„ì›Œë‹¬ë¼ ìš”ì²­.. í•„ìš”í•œ ê²½ìš° ì•„ë˜ ì£¼ì„ ì‚¬ìš©
 				// m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::OFF); 
 			}
 		}
@@ -357,7 +357,7 @@ void CPLCSocketManager::MessageProcess()
 
 		if(m_bInitialize == TRUE)
 		{
-			// Vision -> PLC Data ÃÊ±âÈ­
+			// Vision -> PLC Data ì´ˆê¸°í™”
 			long startIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_000;
 			long endIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_181;
 			long startAddr = plcData[startIndex].nAddr;
@@ -382,16 +382,16 @@ void CPLCSocketManager::MessageProcess()
 			m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_JobNumber], 0);
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30211] PLC_OUT_JobNumber : 0"));
 
-			// division index ÃÊ±âÈ­
+			// division index ì´ˆê¸°í™”
 
-			// ÃÊ±âÈ­ ÀÀ´ä ºñÆ®
+			// ì´ˆê¸°í™” ì‘ë‹µ ë¹„íŠ¸
 			m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::ON);
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30200.1] PLC_DO_RESP_Initialize : ON"));
 		}
 
 		//if (m_bInitialize == FALSE)
 		//{
-		//	// ÃÊ±âÈ­ ÀÀ´ä ºñÆ®
+		//	// ì´ˆê¸°í™” ì‘ë‹µ ë¹„íŠ¸
 		//	m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::OFF);
 		//}
 	}
@@ -407,22 +407,22 @@ void CPLCSocketManager::MessageProcessSimul(int nCameraIndex, int nDivIndex, int
 	{
 	case (long)CUSTOMER::BORGWARNER:
 	{
-		// Get Data : ÇÊ¿äÇÑ ºÎºĞ Ãß°¡ ÇÊ¿ä
+		// Get Data : í•„ìš”í•œ ë¶€ë¶„ ì¶”ê°€ í•„ìš”
 		::g_PLCManager.GetReadDataSimul(nCameraIndex, nDivIndex, nJobNumber, bScanDone);
 
 		// ScanStart
 		if (m_bStart == TRUE)
 		{
-			// Scan ½ÅÈ£ ¹Ş¾ÒÀ¸´Ï Àß ¹Ş¾Ò´Ù°í ¾Ë·ÁÁÖÀÚ
-			// JobNumber È®ÀÎ, °Ë»ç°á°ú ÃÊ±âÈ­, InspStart ON È®ÀÎ ÇÏ¸é PLC InspStart¸¦ OFF ÇÑ´Ù.
-			// ±× ÈÄ¿¡ Scan Start ½ÃÀÛ
+			// Scan ì‹ í˜¸ ë°›ì•˜ìœ¼ë‹ˆ ì˜ ë°›ì•˜ë‹¤ê³  ì•Œë ¤ì£¼ì
+			// JobNumber í™•ì¸, ê²€ì‚¬ê²°ê³¼ ì´ˆê¸°í™”, InspStart ON í™•ì¸ í•˜ë©´ PLC InspStartë¥¼ OFF í•œë‹¤.
+			// ê·¸ í›„ì— Scan Start ì‹œì‘
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_JobNumber], (short)m_nJobNumber);
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON);
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], (long)BORGWARNER::DATA::OFF);
-			//Sleep(10); // PLC InspStart OFF µÉ ½Ã°£À» Á» ±â´Ù·ÁÁÖÀÚ.
+			//Sleep(10); // PLC InspStart OFF ë  ì‹œê°„ì„ ì¢€ ê¸°ë‹¤ë ¤ì£¼ì.
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
 
-			// m_nJobNumber ¿¹¿ÜÃ³¸®
+			// m_nJobNumber ì˜ˆì™¸ì²˜ë¦¬
 			//if ((long)::g_PLCManager.m_vecstrUseRecipe.size() <= m_nJobNumber || m_nJobNumber < 0)
 			//{	::g_Log.Log(_T("PLC -> Vision::JobNumber Error(PLC:%d, Vision Max:%d)"), m_nJobNumber, (long)::g_PLCManager.m_vecstrUseRecipe.size());	return;		}
 
@@ -447,7 +447,7 @@ void CPLCSocketManager::MessageProcessSimul(int nCameraIndex, int nDivIndex, int
 
 		if (m_bInitialize == TRUE)
 		{
-			// Vision -> PLC Data ÃÊ±âÈ­
+			// Vision -> PLC Data ì´ˆê¸°í™”
 			//long startIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_000;
 			//long endIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_181;
 			//long startAddr = plcData[startIndex].nAddr;
@@ -470,9 +470,9 @@ void CPLCSocketManager::MessageProcessSimul(int nCameraIndex, int nDivIndex, int
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], (long)BORGWARNER::DATA::OFF);
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_JobNumber], 0);
 
-			//// division index ÃÊ±âÈ­
+			//// division index ì´ˆê¸°í™”
 
-			//// ÃÊ±âÈ­ ÀÀ´ä ºñÆ®
+			//// ì´ˆê¸°í™” ì‘ë‹µ ë¹„íŠ¸
 			//m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::ON);
 		}
 	}
@@ -489,15 +489,15 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		cycleBarcode = m_strBarcode;
 	}
 
-	// ½Ã°£ °¡Á®¿À±â...
-	// ½ºÄµ ½ÃÀÛÇÑ ½Ã°£ ¸ÕÀú ¹Ş¾Æ³õÀÚ.
-	// ÀÌ°É·Î RawImage, ResultImage, ResultData±îÁö ¸ğµÎ ÅëÀÏ
+	// ì‹œê°„ ê°€ì ¸ì˜¤ê¸°...
+	// ìŠ¤ìº” ì‹œì‘í•œ ì‹œê°„ ë¨¼ì € ë°›ì•„ë†“ì.
+	// ì´ê±¸ë¡œ RawImage, ResultImage, ResultDataê¹Œì§€ ëª¨ë‘ í†µì¼
 	m_strScanTime = _T("");
 	COleDateTime currentTime;
 	currentTime = COleDateTime::GetCurrentTime();
-	m_strScanTime = currentTime.Format(_T("%Y%m%d_%H%M%S")); // ³¯Â¥, ½Ã°£, ºĞ, ÃÊ
+	m_strScanTime = currentTime.Format(_T("%Y%m%d_%H%M%S")); // ë‚ ì§œ, ì‹œê°„, ë¶„, ì´ˆ
 
-	// Multi Á¶¸íÄÁÆ®·Ñ·¯¸¦ »ç¿ëÇÏÁö ¾ÊÀ» ¶§´Â ÇÑ¹ø¿¡ ÄÑ°í ÇÑ¹ø¿¡ ²ôÀÚ
+	// Multi ì¡°ëª…ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ì‚¬ìš©í•˜ì§€ ì•Šì„ ë•ŒëŠ” í•œë²ˆì— ì¼œê³  í•œë²ˆì— ë„ì
 	if(::g_ConfigManager.m_bMultiIllumination == FALSE)
 	{
 		// Illum. On
@@ -541,7 +541,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 
 		if(idx + 1 < cameraCount)
 		{
-			Sleep(700);// Camera Scan°£ ½Ã°£Â÷¸¦ ÁØ´Ù. // 250714 ¾²·¹µå ´ë±â½Ã°£ 500À¸·Î Áõ°¡ // 250715 ¾²·¹µå ´ë±â½Ã°£ 700
+			Sleep(700);// Camera Scanê°„ ì‹œê°„ì°¨ë¥¼ ì¤€ë‹¤. // 250714 ì“°ë ˆë“œ ëŒ€ê¸°ì‹œê°„ 500ìœ¼ë¡œ ì¦ê°€ // 250715 ì“°ë ˆë“œ ëŒ€ê¸°ì‹œê°„ 700
 		}
 	}
 
@@ -612,7 +612,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		::g_Log.Log(_T("MSG_V2H::V2H_SCAN_DONE"));
 	}
 
-	// Multi Á¶¸íÄÁÆ®·Ñ·¯¸¦ »ç¿ëÇÏÁö ¾ÊÀ» ¶§´Â ÇÑ¹ø¿¡ ÄÑ°í ÇÑ¹ø¿¡ ²ôÀÚ
+	// Multi ì¡°ëª…ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ì‚¬ìš©í•˜ì§€ ì•Šì„ ë•ŒëŠ” í•œë²ˆì— ì¼œê³  í•œë²ˆì— ë„ì
 	if(::g_ConfigManager.m_bMultiIllumination == FALSE)
 	{
 		for(long idx = 0; idx < ILLUM_CHANNEL_MAX; idx++)
@@ -621,7 +621,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		}
 	}
 
-	// ´Ù½Ã Ready »óÅÂ·Î µ¹·Á ³õ´Â´Ù.
+	// ë‹¤ì‹œ Ready ìƒíƒœë¡œ ëŒë ¤ ë†“ëŠ”ë‹¤.
 	// Scan thread owns Ready state. Do not force-ready from PLC thread.
 
 }

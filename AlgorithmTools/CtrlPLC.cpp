@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "CtrlPLC.h"
 
 #include "CtrlPLC_Melsec.h"
@@ -76,7 +76,7 @@ BOOL CCtrlPLC::Disconnect()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// PLC -> Vision Data Read, Write°ü·Ã
+// PLC -> Vision Data Read, Writeê´€ë ¨
 BOOL CCtrlPLC::ReadPLC2VisionData()
 {
 	auto &plc = ::g_PLCManager.m_sPLC;
@@ -93,7 +93,7 @@ BOOL CCtrlPLC::ReadPLC2VisionData()
 
 	memset(m_pReadPLC2VisionData, 0, sizeof(short) * PLC_ADDRESS_MAX);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->ReadPLC(plc.nPLC2VisionStartAddr, dataCount, m_pReadPLC2VisionData) == FALSE)
 	{
 		return FALSE;
@@ -114,7 +114,7 @@ BOOL CCtrlPLC::WritePLC2VisionData()
 
 	SetPLCData(data.vecsPLC2VisionData, data.nPLC2VisionStartAddr, m_pWritePLC2VisionData);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->WritePLC(data.nPLC2VisionStartAddr, data.nPLC2VisionCnt, m_pWritePLC2VisionData) == FALSE)
 	{
 		return FALSE;
@@ -125,7 +125,7 @@ BOOL CCtrlPLC::WritePLC2VisionData()
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// Vision -> PLC Data Read, Write°ü·Ã
+// Vision -> PLC Data Read, Writeê´€ë ¨
 BOOL CCtrlPLC::ReadVision2PLCData()
 {
 	auto &plc = ::g_PLCManager.m_sPLC;
@@ -142,7 +142,7 @@ BOOL CCtrlPLC::ReadVision2PLCData()
 
 	memset(m_pReadVision2PLCData, 0, sizeof(short) * PLC_ADDRESS_MAX);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->ReadPLC(plc.nVision2PLCStartAddr, dataCount, m_pReadVision2PLCData) == FALSE)
 	{
 		return FALSE;
@@ -161,8 +161,8 @@ BOOL CCtrlPLC::WriteVision2PLCData()
 	{
 	case (long)CUSTOMER::BORGWARNER:
 	{
-		// 30300¹ø´ë °¡ Read, 30200¹ø´ë°¡ Write, 31000¹ø ºÎÅÍ Data Write ÀÌ¹Ç·Î
-		// ÇÑ¹ø¿¡ ´Ù ½á¹ö¸®¸é Read Address¿¡ Write ÇÒ ¼ö ÀÖ¾î ³ª´²¼­ Write ÇÑ´Ù.
+		// 30300ë²ˆëŒ€ ê°€ Read, 30200ë²ˆëŒ€ê°€ Write, 31000ë²ˆ ë¶€í„° Data Write ì´ë¯€ë¡œ
+		// í•œë²ˆì— ë‹¤ ì¨ë²„ë¦¬ë©´ Read Addressì— Write í•  ìˆ˜ ìˆì–´ ë‚˜ëˆ ì„œ Write í•œë‹¤.
 		auto &data = ::g_PLCManager.m_sPLC;
 
 		memset(m_pWriteVision2PLCData, 0, sizeof(short) * PLC_ADDRESS_MAX);
@@ -172,7 +172,7 @@ BOOL CCtrlPLC::WriteVision2PLCData()
 		long startIndex = (long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_LinkTest;
 		long dataCount = (long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_JobNumber - startIndex + 1;
 
-		//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+		//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 		if(m_pMelsec->WritePLC(data.nVision2PLCStartAddr, dataCount, m_pWriteVision2PLCData) == FALSE)
 		{
 			return FALSE;
@@ -199,7 +199,7 @@ BOOL CCtrlPLC::WriteVision2PLCData()
 
 		SetPLCData(data.vecsVision2PLCData, data.nVision2PLCStartAddr, m_pWriteVision2PLCData);
 
-		//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+		//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 		if(m_pMelsec->WritePLC(data.nVision2PLCStartAddr, data.nVision2PLCCnt, m_pWriteVision2PLCData) == FALSE)
 		{
 			return FALSE;
@@ -214,12 +214,12 @@ BOOL CCtrlPLC::WriteVision2PLCData()
 //////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// °³º° Address ¿¡ ÀĞ±â, ¾²±â
+// ê°œë³„ Address ì— ì½ê¸°, ì“°ê¸°
 BOOL CCtrlPLC::ReadData(SPLCData &data)
 {
 	short buffer(0);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->ReadPLC(data.nAddr, 1, &buffer) == FALSE)
 	{
 		return FALSE;
@@ -238,7 +238,7 @@ BOOL CCtrlPLC::WriteData(SPLCData &data, const short value)
 
 	SetPLCData(data, buffer);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->WritePLC(data.nAddr, 1, &buffer) == FALSE)
 	{
 		return FALSE;
@@ -255,7 +255,7 @@ BOOL CCtrlPLC::WriteDataDouble(SPLCData &data, const long value)
 
 	SetPLCDataDouble(data, buffer);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->WritePLC(data.nAddr, 1, &buffer) == FALSE)
 	{
 		return FALSE;
@@ -272,7 +272,7 @@ BOOL CCtrlPLC::WriteDatasDouble(std::vector<SPLCData> vecData, long nStartAddr)
 
 	SetPLCDatasDouble(vecData, m_pWriteVision2PLCData_Double);
 
-	//Config¿¡¼­ ¼³Á¤ÇÑ ÁÖ¼Ò¿Í ¼ö
+	//Configì—ì„œ ì„¤ì •í•œ ì£¼ì†Œì™€ ìˆ˜
 	if(m_pMelsec->WritePLC(nStartAddr, dataCount, m_pWriteVision2PLCData_Double) == FALSE)
 	{
 		return FALSE;
@@ -284,7 +284,7 @@ BOOL CCtrlPLC::WriteDatasDouble(std::vector<SPLCData> vecData, long nStartAddr)
 
 BOOL CCtrlPLC::GetPLCData(short* pData, long nStartAddr, std::vector<SPLCData> &vecData)
 {
-	//PLC¿¡¼­ ¹Ş¾Æ¿Â Buffer¸¦ Vector °ª¿¡ ÀÔ·Â
+	//PLCì—ì„œ ë°›ì•„ì˜¨ Bufferë¥¼ Vector ê°’ì— ì…ë ¥
 	long bit = 0;
 
 	for(long idx = 0; idx < vecData.size(); idx++)
@@ -313,7 +313,7 @@ BOOL CCtrlPLC::GetPLCData(short* pData, long nStartAddr, std::vector<SPLCData> &
 
 BOOL CCtrlPLC::GetPLCData(short* pData, SPLCData &data)
 {
-	//PLC¿¡¼­ ¹Ş¾Æ¿Â Buffer¸¦ Vector °ª¿¡ ÀÔ·Â
+	//PLCì—ì„œ ë°›ì•„ì˜¨ Bufferë¥¼ Vector ê°’ì— ì…ë ¥
 	if(data.nType == (long)PLC_MEMORY_TYPE::BIT)
 	{
 		auto bit = pData[data.nAddr] & (1 << data.nBitNum);
@@ -337,7 +337,7 @@ BOOL CCtrlPLC::GetPLCData(short* pData, SPLCData &data)
 
 BOOL CCtrlPLC::SetPLCData(std::vector<SPLCData> vecData, long nStartAddr, short* pData)
 {
-	//Vector °ªÀ» PLC¿¡¼­ Àü´ŞÇÒ Buffer¿¡ ÀÔ·Â
+	//Vector ê°’ì„ PLCì—ì„œ ì „ë‹¬í•  Bufferì— ì…ë ¥
 	for(long idx = 0; idx < vecData.size(); idx++)
 	{
 		if(vecData[idx].nType == (long)PLC_MEMORY_TYPE::BIT)
@@ -362,7 +362,7 @@ BOOL CCtrlPLC::SetPLCData(std::vector<SPLCData> vecData, long nStartAddr, short*
 
 BOOL CCtrlPLC::SetPLCData(std::vector<SPLCData> vecData, long nStartAddr, int* pData)
 {
-	//Vector °ªÀ» PLC¿¡¼­ Àü´ŞÇÒ Buffer¿¡ ÀÔ·Â
+	//Vector ê°’ì„ PLCì—ì„œ ì „ë‹¬í•  Bufferì— ì…ë ¥
 	for (long idx = 0; idx < vecData.size(); idx++)
 	{
 		if (vecData[idx].nType == (long)PLC_MEMORY_TYPE::BIT)
@@ -422,7 +422,7 @@ BOOL CCtrlPLC::SetPLCDataDouble(SPLCData data, int &pData)
 
 BOOL CCtrlPLC::SetPLCDatasDouble(std::vector<SPLCData> vecData, int* pData)
 {
-	//Vector °ªÀ» PLC¿¡¼­ Àü´ŞÇÒ Buffer¿¡ ÀÔ·Â
+	//Vector ê°’ì„ PLCì—ì„œ ì „ë‹¬í•  Bufferì— ì…ë ¥
 	for(long idx = 0; idx < vecData.size(); idx++)
 	{
 		pData[idx] = vecData[idx].nValue;
