@@ -30,7 +30,7 @@ void CConfigManager::InitParameters()
 	CString strTemp;
 
 	m_strPath.Format(_T("%s\\Config\\Config.ini"), m_strCurPath);
-	m_strPrevRecipeFilePath.Format(_T("%s\\Recipe\\Default.recipe"), m_strCurPath);
+	m_strPrevRecipeFilePath = _T("D:\\HubisVIS\\Recipe\\Default.recipe");	// 레시피 폴더는 D:\HubisVIS\Recipe (DlgVisionMain RECIPE_FOLDER)
 	m_bHardwareExist = FALSE;
 	m_nMainUI = (long)MAINUI::UI_FOR_SINGLE_CAMERA;
 	m_nDivisionIndex = 10;

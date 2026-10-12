@@ -25,6 +25,10 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+// 레시피 폴더: 현장·시뮬레이션 모두 D:\HubisVIS\Recipe 하나를 쓴다.
+// 시퀀스 레시피 전환, 레시피 열기/저장 대화상자, 기본 레시피가 모두 이 폴더를 사용한다.
+static const LPCTSTR RECIPE_FOLDER = _T("D:\\HubisVIS\\Recipe");
+
 // CDlgVisionMain 대화 상자
 
 IMPLEMENT_DYNAMIC(CDlgVisionMain, CDialogEx)
@@ -120,7 +124,8 @@ BOOL CDlgVisionMain::OnInitDialog()
 	m_strCurPath = strCurPath.Left(strCurPath.ReverseFind(_T('\\')));
 	strConfig.Format(_T("%s\\Config"), m_strCurPath);
 	CreateDirectory(strConfig, nullptr);
-	strRecipe.Format(_T("%s\\Recipe"), m_strCurPath);
+	strRecipe = RECIPE_FOLDER;
+	CreateDirectory(_T("D:\\HubisVIS"), nullptr);
 	CreateDirectory(strRecipe, nullptr);
 
 	// Log 창 생성
@@ -480,7 +485,8 @@ void CDlgVisionMain::OnFileRecipeopen()
 	//CString RecipePath;
 	//RecipePath.Format(_T("%s\\Recipe"), m_strCurPath);
 	//Dlg.m_ofn.lpstrInitialDir = RecipePath;
-	Dlg.m_ofn.lpstrInitialDir = _T("D:\\HubisVIS\\Recipe");
+	CString strRecipeDir = RECIPE_FOLDER;	// 시퀀스와 같은 레시피 폴더
+	Dlg.m_ofn.lpstrInitialDir = strRecipeDir;
 	if(Dlg.DoModal() == IDOK)
 	{
 		bOk = TRUE;
@@ -509,7 +515,8 @@ void CDlgVisionMain::OnFileRecipesave()
 	//CString RecipePath;
 	//RecipePath.Format(_T("%s\\Recipe"), m_strCurPath);
 	//Dlg.m_ofn.lpstrInitialDir = RecipePath;//LYS 240902
-	Dlg.m_ofn.lpstrInitialDir = _T("D:\\HubisVIS\\Recipe");
+	CString strRecipeDir = RECIPE_FOLDER;	// 시퀀스와 같은 레시피 폴더
+	Dlg.m_ofn.lpstrInitialDir = strRecipeDir;
 	if(Dlg.DoModal() == IDOK)
 	{
 		bOk = TRUE;
@@ -677,6 +684,9 @@ BOOL CDlgVisionMain::LoadRecipe(const LPCTSTR szPathName)
 			return FALSE;			
 		}
 
+		// 실제로 불러온 레시피를 저장 대상으로 맞춘다. 시퀀스(OnUpdateRecipeUpdate)가 레시피를 바꿔 불러온 뒤
+		// "Recipe Save"를 누르면 이전에 열었던 다른 레시피 파일에 덮어쓰던 문제 방지.
+		m_strCurRecipePath = strTemp;
 		::g_ConfigManager.m_strPrevRecipeFilePath = szPathName;
 		::g_ConfigManager.SaveConfig();
 
@@ -985,7 +995,7 @@ LRESULT CDlgVisionMain::OnUpdateRecipeUpdate(WPARAM wParam, LPARAM lParam)	// wP
 {
 	long recipeIndex = (long)lParam; // m_nJobNumber - 1 ... Recipe Resist에서는 1번부터 시작함.
 	CString strRecipe;
-	strRecipe.Format(_T("%s\\Recipe\\%s"), m_strCurPath, ::g_PLCManager.m_vecstrUseRecipe[recipeIndex]);
+	strRecipe.Format(_T("%s\\%s"), RECIPE_FOLDER, ::g_PLCManager.m_vecstrUseRecipe[recipeIndex]);
 	
 	m_bReceiveRecipeOpen = LoadRecipe(strRecipe);	
 	return 0L;
