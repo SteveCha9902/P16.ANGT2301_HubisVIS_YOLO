@@ -9,7 +9,7 @@
 #define PLC_START_DIAG_DELAY_WARN_MS 500
 #define PLC_UI_SEND_TIMEOUT_MS 1000
 #define PLC_SCAN_READY_WAIT_TIMEOUT_MS 1000
-#define PLC_START_RESP_MIN_HOLD_MS 100		// PLC 회신 S3: Vision 신호 최소 유지 시간
+#define PLC_START_RESP_MIN_HOLD_MS 130		// PLC 회신 S3 최소 100 ms + PLC 스캔(15 ms) 2회 여유. 시뮬레이션에서 100 ms 유지 시 PLC 측 94~98 ms로 관측
 #define PLC_START_REQ_OFF_WAIT_MS 1000		// RESP_Insp_Start ON 후 REQ_Insp_Start OFF 확인 대기 상한
 #define PLC_MOVE_RESP_WARN_MS 500			// REQ_Insp_Move ON 후 RESP 미수신 경고 (정상 최대 약 177 ms)
 #define PLC_MOVE_RESP_ALARM_MS 5000			// REQ_Insp_Move ON 후 RESP 미수신 시 ALARM ON
