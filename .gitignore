@@ -1,0 +1,13 @@
+# Build outputs / IDE caches
+bin/
+.vs/
+**/x64/
+**/Debug/
+**/Release/
+*.user
+*.aps
+*.VC.db
+ipch/
+
+# Field logs (large, analysis input only)
+Borgwarner_Log/

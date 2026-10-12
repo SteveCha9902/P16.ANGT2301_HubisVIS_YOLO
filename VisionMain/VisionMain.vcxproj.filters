@@ -1,0 +1,252 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="소스 파일">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="헤더 파일">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="UI">
+      <UniqueIdentifier>{e1ecf27c-e4f4-4e29-b80f-1c504d7c0570}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Link">
+      <UniqueIdentifier>{68b21c89-cead-4bbd-8228-07c7bccdb896}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI\Algorithm UI">
+      <UniqueIdentifier>{7a36186f-a143-4473-8bf3-8d590af858da}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="VisionMain.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgBatchInspection.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgLog.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgMain1.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgMain2.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgVisionMain.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Link.cpp">
+      <Filter>Link</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgImageProcManager.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgNewInspectionItem.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgInspItemSetup.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgSetup.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoBlob.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoCriteria.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoEdgeDetect.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoROI.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoThreshold.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgIndexSetup.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgCalibration.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoResult.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgAlgoCalibration.cpp">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgInspItemMatch.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgUser.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgNewUser.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgLogin.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgRecipeResist.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgPLCMonitering.cpp">
+      <Filter>UI</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgLogin2.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="VisionMain.def">
+      <Filter>소스 파일</Filter>
+    </None>
+    <None Include="res\VisionMain.rc2">
+      <Filter>리소스 파일</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="VisionMain.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgBatchInspection.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgLog.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgMain1.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgMain2.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgVisionMain.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Link.h">
+      <Filter>Link</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgImageProcManager.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgNewInspectionItem.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgInspItemSetup.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgSetup.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoBlob.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoCriteria.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoEdgeDetect.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoROI.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoThreshold.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgIndexSetup.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgCalibration.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoResult.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgAlgoCalibration.h">
+      <Filter>UI\Algorithm UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgInspItemMatch.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgUser.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgNewUser.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgLogin.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgRecipeResist.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgPLCMonitering.h">
+      <Filter>UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgLogin2.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="VisionMain.rc">
+      <Filter>리소스 파일</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\Connect.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\Disconnect.ico">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\HUBIS.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\bitmap1.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\SAMBO.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\hubis_logo.png">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\HUBIS_LOGO.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\HUBIS_400.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\Hubis400.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+    <Image Include="res\Axbis400.bmp">
+      <Filter>리소스 파일</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

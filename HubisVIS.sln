@@ -1,0 +1,100 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.2017
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HubisVIS", "HubisVIS\HubisVIS.vcxproj", "{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AlgorithmTools", "AlgorithmTools\AlgorithmTools.vcxproj", "{8A05E1C6-41AB-4601-849C-4EB85939DC9E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConfigSetup", "ConfigSetup\ConfigSetup.vcxproj", "{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0D814939-9914-404A-BA1B-9364476D5DC6}"
+	ProjectSection(SolutionItems) = preProject
+		fileCleaner.bat = fileCleaner.bat
+		ReleaseNote.txt = ReleaseNote.txt
+		semiinfo.h = semiinfo.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SDK", "SDK", "{67C6D79D-32D8-4FCC-8475-4DC6B4883903}"
+	ProjectSection(SolutionItems) = preProject
+		Basler_pylon_5.2.0.13457.exe = Basler_pylon_5.2.0.13457.exe
+		HubisSDK_Developer_v1.2.6_release.msi = HubisSDK_Developer_v1.2.6_release.msi
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VisionMain", "VisionMain\VisionMain.vcxproj", "{39E5E665-FFD4-424F-8EF9-347DA2650048}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Data", "Data", "{733664B2-AC52-4EFC-9337-CA4E9BE4EB17}"
+	ProjectSection(SolutionItems) = preProject
+		Calibration.ini = Calibration.ini
+		Config.ini = Config.ini
+		PLCMap.ini = PLCMap.ini
+		PostInsp.recipe = PostInsp.recipe
+		PreInsp.recipe = PreInsp.recipe
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PlcSetup", "PlcSetup\PlcSetup.vcxproj", "{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E} = {8A05E1C6-41AB-4601-849C-4EB85939DC9E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VisionSPC", "VisionSPC\VisionSPC.vcxproj", "{F66FE987-6153-422F-AEB8-C479CD52C4F2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Debug|x64.ActiveCfg = Debug|x64
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Debug|x64.Build.0 = Debug|x64
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Debug|x86.ActiveCfg = Debug|x64
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Release|x64.ActiveCfg = Release|x64
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Release|x64.Build.0 = Release|x64
+		{0F3694DA-0121-4438-AEDF-C6B80FAEACDE}.Release|x86.ActiveCfg = Release|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Debug|x64.ActiveCfg = Debug|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Debug|x64.Build.0 = Debug|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Debug|x86.ActiveCfg = Debug|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Release|x64.ActiveCfg = Release|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Release|x64.Build.0 = Release|x64
+		{8A05E1C6-41AB-4601-849C-4EB85939DC9E}.Release|x86.ActiveCfg = Release|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Debug|x64.ActiveCfg = Debug|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Debug|x64.Build.0 = Debug|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Debug|x86.ActiveCfg = Debug|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Release|x64.ActiveCfg = Release|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Release|x64.Build.0 = Release|x64
+		{CEAB5FDD-1725-45A6-A211-785FDDD5DE92}.Release|x86.ActiveCfg = Release|x64
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Debug|x64.ActiveCfg = Debug|x64
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Debug|x64.Build.0 = Debug|x64
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Debug|x86.ActiveCfg = Debug|Win32
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Debug|x86.Build.0 = Debug|Win32
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Release|x64.ActiveCfg = Release|x64
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Release|x64.Build.0 = Release|x64
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Release|x86.ActiveCfg = Release|Win32
+		{39E5E665-FFD4-424F-8EF9-347DA2650048}.Release|x86.Build.0 = Release|Win32
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Debug|x64.ActiveCfg = Debug|x64
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Debug|x64.Build.0 = Debug|x64
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Debug|x86.ActiveCfg = Debug|Win32
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Debug|x86.Build.0 = Debug|Win32
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Release|x64.ActiveCfg = Release|x64
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Release|x64.Build.0 = Release|x64
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Release|x86.ActiveCfg = Release|Win32
+		{D6D9CFDD-A402-4E96-81D2-E18372ABF1D7}.Release|x86.Build.0 = Release|Win32
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Debug|x64.ActiveCfg = Debug|x64
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Debug|x64.Build.0 = Debug|x64
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Debug|x86.ActiveCfg = Debug|Win32
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Debug|x86.Build.0 = Debug|Win32
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Release|x64.ActiveCfg = Release|x64
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Release|x64.Build.0 = Release|x64
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Release|x86.ActiveCfg = Release|Win32
+		{F66FE987-6153-422F-AEB8-C479CD52C4F2}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DA7487E0-FBC0-4A52-874F-6C672A74B019}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,250 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="소스 파일">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="헤더 파일">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="리소스 파일">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Algorithm%28Global%29">
+      <UniqueIdentifier>{0eba921c-9b1f-4dcb-8ffc-e17fb97c05e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hardware%28Global%29">
+      <UniqueIdentifier>{9f803143-ccca-4294-8781-70c71178d34e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Log%28Global%29">
+      <UniqueIdentifier>{20637cea-c0a6-4f02-9dd1-229e99c9ded6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Manager%28Global%29">
+      <UniqueIdentifier>{f383ecd2-092e-403e-8d17-a39712210078}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scan Thread%28Global%29">
+      <UniqueIdentifier>{901cf0a9-97cd-4326-a6a4-a582c41c15df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Inspection Thread%28Global%29">
+      <UniqueIdentifier>{d09ae736-7c83-4298-a082-3dd913125ef4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Inspection Algorithm%28Global%29">
+      <UniqueIdentifier>{bdf881e2-d13f-444f-90b1-d23684501dfb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hardware%28Global%29\Illumination">
+      <UniqueIdentifier>{d03a8809-75ba-4221-a52c-01c12cb3d9ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hardware%28Global%29\Camera">
+      <UniqueIdentifier>{112327dd-30cc-433f-966a-9cc2ca4ced55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Inspection Algorithm%28Global%29\DoInspection">
+      <UniqueIdentifier>{439bb144-39ff-4a49-bec8-3cdd22e9dca9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hardware%28Global%29\PLC">
+      <UniqueIdentifier>{5aede361-f5fe-4e36-92c2-4da526d13975}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AlgorithmTools.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Log.cpp">
+      <Filter>Log%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="FileManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="RecipeManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="Algorithm.cpp">
+      <Filter>Algorithm%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="Inspection.cpp">
+      <Filter>Inspection Algorithm%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="ScanManager.cpp">
+      <Filter>Scan Thread%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="InspectionManager.cpp">
+      <Filter>Inspection Thread%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="CtrlSerial.cpp">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClCompile>
+    <ClCompile Include="FlexLibComm.cpp">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClCompile>
+    <ClCompile Include="FlexSerialComm.cpp">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClCompile>
+    <ClCompile Include="GigECamera.cpp">
+      <Filter>Hardware%28Global%29\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="CtrlCamera.cpp">
+      <Filter>Hardware%28Global%29\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="DataSaveManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="PLCSocketManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="CalibrationManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="DoROI.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="DoCriteria.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="DoDetectBlob.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="DoEdgeDetect.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="DoThreshold.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="OverlayManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="DoResult.cpp">
+      <Filter>Inspection Algorithm%28Global%29\DoInspection</Filter>
+    </ClCompile>
+    <ClCompile Include="DlgLog.cpp">
+      <Filter>Log%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="UserManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+    <ClCompile Include="CtrlPLC_Melsec.cpp">
+      <Filter>Hardware%28Global%29\PLC</Filter>
+    </ClCompile>
+    <ClCompile Include="CtrlPLC.cpp">
+      <Filter>Hardware%28Global%29\PLC</Filter>
+    </ClCompile>
+    <ClCompile Include="PLCManager.cpp">
+      <Filter>Manager%28Global%29</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="AlgorithmTools.def">
+      <Filter>소스 파일</Filter>
+    </None>
+    <None Include="res\AlgorithmTools.rc2">
+      <Filter>리소스 파일</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="AlgorithmTools.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Log.h">
+      <Filter>Log%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="FileManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="RecipeManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="Algorithm.h">
+      <Filter>Algorithm%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="Inspection.h">
+      <Filter>Inspection Algorithm%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="ScanManager.h">
+      <Filter>Scan Thread%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="InspectionManager.h">
+      <Filter>Inspection Thread%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="FlexSerialComm.h">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClInclude>
+    <ClInclude Include="CtrlSerial.h">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClInclude>
+    <ClInclude Include="FlexLibComm.h">
+      <Filter>Hardware%28Global%29\Illumination</Filter>
+    </ClInclude>
+    <ClInclude Include="GigECamera.h">
+      <Filter>Hardware%28Global%29\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="CtrlCamera.h">
+      <Filter>Hardware%28Global%29\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="DataSaveManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="SocketManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="PLCSocketManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="CalibrationManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="OverlayManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgLog.h">
+      <Filter>Log%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="UserManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+    <ClInclude Include="CtrlPLC_Melsec.h">
+      <Filter>Hardware%28Global%29\PLC</Filter>
+    </ClInclude>
+    <ClInclude Include="CtrlPLC.h">
+      <Filter>Hardware%28Global%29\PLC</Filter>
+    </ClInclude>
+    <ClInclude Include="PLCManager.h">
+      <Filter>Manager%28Global%29</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="AlgorithmTools.rc">
+      <Filter>리소스 파일</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
