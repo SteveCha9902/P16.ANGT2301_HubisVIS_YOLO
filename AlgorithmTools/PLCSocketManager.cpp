@@ -9,6 +9,11 @@
 #define PLC_START_DIAG_DELAY_WARN_MS 500
 #define PLC_UI_SEND_TIMEOUT_MS 1000
 #define PLC_SCAN_READY_WAIT_TIMEOUT_MS 1000
+#define PLC_START_RESP_MIN_HOLD_MS 100		// PLC 회신 S3: Vision 신호 최소 유지 시간
+#define PLC_START_REQ_OFF_WAIT_MS 1000		// RESP_Insp_Start ON 후 REQ_Insp_Start OFF 확인 대기 상한
+#define PLC_MOVE_RESP_WARN_MS 500			// REQ_Insp_Move ON 후 RESP 미수신 경고 (정상 최대 약 177 ms)
+#define PLC_MOVE_RESP_ALARM_MS 5000			// REQ_Insp_Move ON 후 RESP 미수신 시 ALARM ON
+#define PLC_WAIT_SLICE_MS 50				// 스캔 대기 중 LinkTest 처리 간격
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -17,6 +22,64 @@ static char THIS_FILE[] = __FILE__;
 #endif
 
 CPLCSocketManager g_PLCSocketManager;
+
+// PLC 핸드쉐이크 상태. PLC 스레드(g_PLCSocketManager 단일 인스턴스) 전용이며,
+// DLL export 클래스의 레이아웃을 바꾸지 않기 위해 헤더 대신 파일 내부에 둔다.
+static BOOL s_bStartRespOn = FALSE;		// RESP_Insp_Start ON 유지 중 (REQ_Insp_Start OFF 확인 후 OFF)
+static DWORD s_dwStartRespOnTick = 0;
+static BOOL s_bMoveRespWarned = FALSE;	// 현재 Move 요청에 대해 미응답 경고를 남겼는지
+static BOOL s_bMoveAlarmOn = FALSE;		// Move 미응답으로 ALARM을 켰는지
+static BOOL s_bInitRespOn = FALSE;		// RESP_Initialize ON 유지 중 (REQ_Initialize OFF 확인 후 OFF)
+
+// UI 타이머가 요청한 LinkTest 값을 PLC에 쓴다.
+// 스캔 대기 중에도 호출해 PLC의 LinkTest 감시(5 s)에 걸리지 않게 한다.
+static void ServicePendingLinkTest(CPLCSocketManager *pManager)
+{
+	LONG nPendingLinkTest = InterlockedExchange(&pManager->m_nPendingLinkTestValue, -1);
+	if(nPendingLinkTest < 0)
+	{
+		return;
+	}
+
+	auto &linkData = ::g_PLCManager.m_sPLC.vecsVision2PLCData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_LinkTest];
+	DWORD dwLinkWriteTick = GetTickCount();
+	BOOL bLinkWriteRet = pManager->m_pCtrlPLC->WriteData(linkData, (short)nPendingLinkTest);
+	DWORD dwLinkWriteElapsed = GetTickCount() - dwLinkWriteTick;
+	if(bLinkWriteRet == FALSE || dwLinkWriteElapsed >= PLC_START_DIAG_DELAY_WARN_MS)
+	{
+		::g_Log.Log(_T("[PLC_LINK_DIAG][WARN] LinkTest write Value:%d Ret:%d Elapsed:%lu ms"), nPendingLinkTest, bLinkWriteRet, (unsigned long)dwLinkWriteElapsed);
+	}
+}
+
+// 핸들을 기다리는 동안(핸들이 없으면 단순 대기) LinkTest 쓰기를 계속 처리한다.
+// 반환값은 WaitForMultipleObjects와 같고, 시간 초과 시 WAIT_TIMEOUT을 반환한다.
+static DWORD WaitWithLinkTest(CPLCSocketManager *pManager, DWORD nCount, const HANDLE *pHandles, BOOL bWaitAll, DWORD dwTimeoutMs)
+{
+	const DWORD dwBeginTick = GetTickCount();
+	while(1)
+	{
+		DWORD dwElapsed = GetTickCount() - dwBeginTick;
+		DWORD dwRemain = (dwElapsed >= dwTimeoutMs) ? 0 : (dwTimeoutMs - dwElapsed);
+		DWORD dwSlice = (dwRemain < PLC_WAIT_SLICE_MS) ? dwRemain : PLC_WAIT_SLICE_MS;
+
+		DWORD dwRet = WAIT_TIMEOUT;
+		if(nCount > 0)
+		{
+			dwRet = ::WaitForMultipleObjects(nCount, pHandles, bWaitAll, dwSlice);
+		}
+		else
+		{
+			Sleep(dwSlice);
+		}
+
+		if(dwRet != WAIT_TIMEOUT || GetTickCount() - dwBeginTick >= dwTimeoutMs)
+		{
+			return dwRet;
+		}
+
+		ServicePendingLinkTest(pManager);
+	}
+}
 
 CPLCSocketManager::CPLCSocketManager()
 	: m_pParent(nullptr)
@@ -147,17 +210,9 @@ void CPLCSocketManager::ThreadClient()
 						::g_Log.Log(_T("[PLC_START_DIAG] ReadPLC2VisionData Fail - Last REQ[30301.1]:%d, Seq:%d, Job:%d, Cam:%d, Div:%d"), m_bStart, m_nStartSignalSeq, m_nJobNumber, m_nCameraIndex, m_nDivIndex);
 					}
 					MessageProcess();
-					LONG nPendingLinkTest = InterlockedExchange(&m_nPendingLinkTestValue, -1);
-					if(nPendingLinkTest >= 0 && bRet != FALSE)
+					if(bRet != FALSE)
 					{
-						auto &linkData = ::g_PLCManager.m_sPLC.vecsVision2PLCData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_LinkTest];
-						DWORD dwLinkWriteTick = GetTickCount();
-						BOOL bLinkWriteRet = m_pCtrlPLC->WriteData(linkData, (short)nPendingLinkTest);
-						DWORD dwLinkWriteElapsed = GetTickCount() - dwLinkWriteTick;
-						if(bLinkWriteRet == FALSE || dwLinkWriteElapsed >= PLC_START_DIAG_DELAY_WARN_MS)
-						{
-							::g_Log.Log(_T("[PLC_LINK_DIAG][WARN] LinkTest write Value:%d Ret:%d Elapsed:%lu ms"), nPendingLinkTest, bLinkWriteRet, (unsigned long)dwLinkWriteElapsed);
-						}
+						ServicePendingLinkTest(this);
 					}
 
 					if (bRet == FALSE)
@@ -240,9 +295,50 @@ void CPLCSocketManager::MessageProcess()
 		// Get Data : 필요한 부분 추가 필요
 		// ::g_PLCManager.GetReadData();  // 251029 sjpark 중복 불러오기 이슈가 있어보여서 일단 주석처리
 
+		// Start 4-phase: 대기 상한 안에 REQ OFF를 못 본 경우, 이후 폴링에서 REQ OFF를 확인하면 RESP를 끈다
+		if(s_bStartRespOn == TRUE && bCurStartSignal == FALSE)
+		{
+			BOOL bRespOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
+			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d REQ[30301.1] OFF confirmed late - Write [address 30201.1] PLC_DO_RESP_Insp_Start OFF ret:%d hold:%lu ms"), m_nStartSignalSeq, bRespOffRet, (unsigned long)(GetTickCount() - s_dwStartRespOnTick));
+			if(bRespOffRet != FALSE)
+			{
+				s_bStartRespOn = FALSE;
+			}
+		}
+
 		// ScanStart
 		if(bStartRising == TRUE)
 		{
+			// 이전 Start의 RESP가 남아 있으면 먼저 끄고 새로 켠다 (REQ OFF를 관측하지 못한 경우)
+			if(s_bStartRespOn == TRUE)
+			{
+				BOOL bRespOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
+				::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d Previous RESP_Insp_Start still ON at new Start - Write OFF ret:%d"), startContext.seq, bRespOffRet);
+				s_bStartRespOn = FALSE;
+			}
+
+			// 응답받지 못한 Move 요청이 남아 있으면 경고를 남기고 명시적으로 끈다
+			if(m_bMoveReqOn == TRUE)
+			{
+				DWORD dwMovePending = (m_dwMoveReqOnTick == 0) ? 0 : (GetTickCount() - m_dwMoveReqOnTick);
+				BOOL bMoveOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::OFF);
+				::g_Log.Log(_T("[PLC_MOVE_DIAG][WARN] Seq:%d New Start while REQ_Insp_Move pending without RESP (%lu ms) - Write 30201.4 PLC_DO_REQ_Insp_Move OFF ret:%d"), startContext.seq, (unsigned long)dwMovePending, bMoveOffRet);
+				if(bMoveOffRet != FALSE)
+				{
+					m_bMoveReqOn = FALSE;
+					m_dwMoveReqOnTick = 0;
+				}
+			}
+			if(s_bMoveAlarmOn == TRUE)
+			{
+				BOOL bAlarmOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::OFF);
+				::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d New Start - Write 30200.4 PLC_DO_ALARM OFF ret:%d"), startContext.seq, bAlarmOffRet);
+				if(bAlarmOffRet != FALSE)
+				{
+					s_bMoveAlarmOn = FALSE;
+				}
+			}
+
 			// Scan 신호 받았으니 잘 받았다고 알려주자
 			// JobNumber 확인, 검사결과 초기화, InspStart ON 확인 하면 PLC InspStart를 OFF 한다.
 			// 그 후에 Scan Start 시작
@@ -260,17 +356,7 @@ void CPLCSocketManager::MessageProcess()
 			}
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30211] PLC_OUT_JobNumber : %d"), startContext.jobNumber);
 
-			dwWriteTick = GetTickCount();
-			bWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON);
-			dwWriteElapsed = GetTickCount() - dwWriteTick;
-			DWORD dwReqToRespOnElapsed = (startContext.reqOnTick == 0) ? 0 : (GetTickCount() - startContext.reqOnTick);
-			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Write [address 30201.1] PLC_DO_RESP_Insp_Start ON ret:%d elapsed:%lu ms total:%lu ms reqToRespOn:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)(GetTickCount() - dwResponseBeginTick), (unsigned long)dwReqToRespOnElapsed);
-			if(bWriteRet == FALSE || dwWriteElapsed > PLC_START_DIAG_DELAY_WARN_MS || dwReqToRespOnElapsed > PLC_START_DIAG_DELAY_WARN_MS)
-			{
-				::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d PLC_DO_RESP_Insp_Start ON write abnormal - ret:%d elapsed:%lu ms reqToRespOn:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)dwReqToRespOnElapsed);
-			}
-			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : ON"));
-
+			// 검사결과 초기화는 RESP보다 먼저 기록한다 (PLC가 RESP를 본 시점에 이전 결과가 남지 않도록)
 			dwWriteTick = GetTickCount();
 			bWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], (long)BORGWARNER::DATA::OFF);
 			dwWriteElapsed = GetTickCount() - dwWriteTick;
@@ -282,17 +368,75 @@ void CPLCSocketManager::MessageProcess()
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30210] PLC_OUT_InspRet : OFF"));
 
 			dwWriteTick = GetTickCount();
-			Sleep(50); // wait before PLC InspStart OFF.
-			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Wait Before RESP_Insp_Start OFF elapsed:%lu ms"), startContext.seq, (unsigned long)(GetTickCount() - dwWriteTick));
-			dwWriteTick = GetTickCount();
-			bWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
+			bWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON);
 			dwWriteElapsed = GetTickCount() - dwWriteTick;
-			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Write [address 30201.1] PLC_DO_RESP_Insp_Start OFF ret:%d elapsed:%lu ms total:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)(GetTickCount() - dwResponseBeginTick));
-			if(bWriteRet == FALSE || dwWriteElapsed > PLC_START_DIAG_DELAY_WARN_MS)
+			DWORD dwReqToRespOnElapsed = (startContext.reqOnTick == 0) ? 0 : (GetTickCount() - startContext.reqOnTick);
+			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Write [address 30201.1] PLC_DO_RESP_Insp_Start ON ret:%d elapsed:%lu ms total:%lu ms reqToRespOn:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)(GetTickCount() - dwResponseBeginTick), (unsigned long)dwReqToRespOnElapsed);
+			if(bWriteRet == FALSE || dwWriteElapsed > PLC_START_DIAG_DELAY_WARN_MS || dwReqToRespOnElapsed > PLC_START_DIAG_DELAY_WARN_MS)
 			{
-				::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d PLC_DO_RESP_Insp_Start OFF write abnormal - ret:%d elapsed:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed);
+				::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d PLC_DO_RESP_Insp_Start ON write abnormal - ret:%d elapsed:%lu ms reqToRespOn:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)dwReqToRespOnElapsed);
 			}
-			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : OFF"));
+			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : ON"));
+
+			if(bWriteRet != FALSE)
+			{
+				s_bStartRespOn = TRUE;
+				s_dwStartRespOnTick = GetTickCount();
+
+				// Start 4-phase (PLC 회신 S1~S4): RESP를 최소 100 ms 유지하고 REQ OFF를 확인한 뒤 끈다.
+				// 상한 안에 REQ OFF를 못 보면 RESP는 켠 채로 스캔을 진행하고, 이후 폴링에서 REQ OFF 확인 시 끈다.
+				BOOL bReqOffSeen = FALSE;
+				BOOL bReadFail = FALSE;
+				DWORD dwReqOffTick = 0;
+				while(1)
+				{
+					DWORD dwHold = GetTickCount() - s_dwStartRespOnTick;
+					if((bReqOffSeen == TRUE && dwHold >= PLC_START_RESP_MIN_HOLD_MS) || dwHold >= PLC_START_REQ_OFF_WAIT_MS)
+					{
+						break;
+					}
+
+					Sleep(10);
+					ServicePendingLinkTest(this);
+
+					if(bReqOffSeen == FALSE)
+					{
+						if(m_pCtrlPLC->ReadPLC2VisionData() == FALSE)
+						{
+							bReadFail = TRUE;
+							break;
+						}
+						if(m_bStart == FALSE)
+						{
+							bReqOffSeen = TRUE;
+							dwReqOffTick = GetTickCount();
+						}
+					}
+				}
+
+				if(bReqOffSeen == TRUE)
+				{
+					::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d REQ[30301.1] OFF seen after RESP ON:%lu ms"), startContext.seq, (unsigned long)(dwReqOffTick - s_dwStartRespOnTick));
+
+					dwWriteTick = GetTickCount();
+					bWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
+					dwWriteElapsed = GetTickCount() - dwWriteTick;
+					::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Write [address 30201.1] PLC_DO_RESP_Insp_Start OFF ret:%d elapsed:%lu ms total:%lu ms hold:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed, (unsigned long)(GetTickCount() - dwResponseBeginTick), (unsigned long)(GetTickCount() - s_dwStartRespOnTick));
+					if(bWriteRet == FALSE || dwWriteElapsed > PLC_START_DIAG_DELAY_WARN_MS)
+					{
+						::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d PLC_DO_RESP_Insp_Start OFF write abnormal - ret:%d elapsed:%lu ms"), startContext.seq, bWriteRet, (unsigned long)dwWriteElapsed);
+					}
+					if(bWriteRet != FALSE)
+					{
+						s_bStartRespOn = FALSE;
+					}
+					::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : OFF"));
+				}
+				else
+				{
+					::g_Log.Log(_T("[PLC_START_DIAG][WARN] Seq:%d REQ[30301.1] not OFF within %lu ms (readFail:%d) - RESP_Insp_Start kept ON, continue scan"), startContext.seq, (unsigned long)(GetTickCount() - s_dwStartRespOnTick), bReadFail);
+				}
+			}
 
 			DWORD dwResponseTotal = GetTickCount() - dwResponseBeginTick;
 			::g_Log.Log(_T("[PLC_START_DIAG] Seq:%d Start Response End total:%lu ms"), startContext.seq, (unsigned long)dwResponseTotal);
@@ -336,7 +480,8 @@ void CPLCSocketManager::MessageProcess()
 				// m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::OFF); 
 			}
 		}
-		if(m_bScanDone == TRUE)
+		// ScanStart를 실행한 호출에서는 m_bScanDone이 스캔 전에 읽은 값이므로 판단하지 않는다 (다음 폴링에서 처리)
+		if(bStartRising == FALSE && m_bScanDone == TRUE)
 		{
 			const BOOL bLogMoveOff = m_bMoveReqOn;
 			DWORD dwMoveOffTick = GetTickCount();
@@ -351,12 +496,56 @@ void CPLCSocketManager::MessageProcess()
 			{
 				m_bMoveReqOn = FALSE;
 				m_dwMoveReqOnTick = 0;
+
+				if(bLogMoveOff == TRUE && s_bMoveAlarmOn == TRUE)
+				{
+					BOOL bAlarmOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::OFF);
+					::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d RESP_Insp_Move received - Write 30200.4 PLC_DO_ALARM OFF ret:%d"), m_nStartSignalSeq, bAlarmOffRet);
+					if(bAlarmOffRet != FALSE)
+					{
+						s_bMoveAlarmOn = FALSE;
+					}
+				}
 			}
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.4] PLC_DO_REQ_Insp_Move : OFF"));
 		}
-
-		if(m_bInitialize == TRUE)
+		else if(bStartRising == FALSE && m_bMoveReqOn == TRUE && m_dwMoveReqOnTick != 0)
 		{
+			// Move 응답 대기 감시: 경고 로그 후 ALARM. 자동 재시도는 PLC 재확인(M5) 전까지 하지 않는다
+			DWORD dwMoveWait = GetTickCount() - m_dwMoveReqOnTick;
+			if(dwMoveWait >= PLC_MOVE_RESP_WARN_MS && s_bMoveRespWarned == FALSE)
+			{
+				s_bMoveRespWarned = TRUE;
+				::g_Log.Log(_T("[PLC_MOVE_DIAG][WARN] Seq:%d No RESP_Insp_Move for %lu ms - REQ[30301.1]:%d Job:%d Cam:%d Div:%d"), m_nStartSignalSeq, (unsigned long)dwMoveWait, m_bStart, m_nJobNumber, m_nCameraIndex, m_nDivIndex);
+			}
+			if(dwMoveWait >= PLC_MOVE_RESP_ALARM_MS && s_bMoveAlarmOn == FALSE)
+			{
+				BOOL bAlarmOnRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::ON);
+				::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d No RESP_Insp_Move for %lu ms - Write 30200.4 PLC_DO_ALARM ON ret:%d"), m_nStartSignalSeq, (unsigned long)dwMoveWait, bAlarmOnRet);
+				if(bAlarmOnRet != FALSE)
+				{
+					s_bMoveAlarmOn = TRUE;
+				}
+			}
+		}
+
+		// Initialize (PLC 회신 L3·L4): REQ ON이면 1회 초기화 후 RESP ON, REQ OFF 확인 시 RESP OFF.
+		// RESP를 켜지 못한 경우에만 다음 폴링에서 다시 시도한다.
+		if(m_bInitialize == FALSE && s_bInitRespOn == TRUE)
+		{
+			BOOL bInitOffRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::OFF);
+			if(bInitOffRet != FALSE)
+			{
+				s_bInitRespOn = FALSE;
+			}
+			::g_Log.Log(_T("[PLC_INIT_DIAG] REQ[30300.1] OFF - Write [address 30200.1] PLC_DO_RESP_Initialize OFF ret:%d"), bInitOffRet);
+		}
+
+		if(m_bInitialize == TRUE && s_bInitRespOn == FALSE)
+		{
+			DWORD dwInitBeginTick = GetTickCount();
+			::g_Log.Log(_T("[PLC_INIT_DIAG] REQ[30300.1] PLC_DI_REQ_Initialize ON - Initialize Begin"));
+
 			// Vision -> PLC Data 초기화
 			long startIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_000;
 			long endIndex = (long)BORGWARNER::V2P_ADDR_NAME::ResultData_181;
@@ -385,15 +574,14 @@ void CPLCSocketManager::MessageProcess()
 			// division index 초기화
 
 			// 초기화 응답 비트
-			m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::ON);
+			BOOL bInitOnRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::ON);
+			if(bInitOnRet != FALSE)
+			{
+				s_bInitRespOn = TRUE;
+			}
 			::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30200.1] PLC_DO_RESP_Initialize : ON"));
+			::g_Log.Log(_T("[PLC_INIT_DIAG] Initialize End - RESP ON ret:%d elapsed:%lu ms"), bInitOnRet, (unsigned long)(GetTickCount() - dwInitBeginTick));
 		}
-
-		//if (m_bInitialize == FALSE)
-		//{
-		//	// 초기화 응답 비트
-		//	m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Initialize], (long)BORGWARNER::DATA::OFF);
-		//}
 	}
 	break;
 	}
@@ -523,7 +711,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		}
 
 		DWORD dwReadyWaitBegin = GetTickCount();
-		DWORD dwReadyRet = ::WaitForSingleObject(::g_ScanManager.m_Control_Scan[idx].m_hSignal_Ready, PLC_SCAN_READY_WAIT_TIMEOUT_MS);
+		DWORD dwReadyRet = WaitWithLinkTest(this, 1, &::g_ScanManager.m_Control_Scan[idx].m_hSignal_Ready, FALSE, PLC_SCAN_READY_WAIT_TIMEOUT_MS);
 		DWORD dwReadyElapsed = GetTickCount() - dwReadyWaitBegin;
 		if(dwReadyRet != WAIT_OBJECT_0)
 		{
@@ -541,7 +729,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 
 		if(idx + 1 < cameraCount)
 		{
-			Sleep(700);// Camera Scan간 시간차를 준다. // 250714 쓰레드 대기시간 500으로 증가 // 250715 쓰레드 대기시간 700
+			WaitWithLinkTest(this, 0, nullptr, FALSE, 700);// Camera Scan간 시간차를 준다. (대기 중 LinkTest 유지) // 250714 쓰레드 대기시간 500으로 증가 // 250715 쓰레드 대기시간 700
 		}
 	}
 
@@ -553,7 +741,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 	DWORD ret = WAIT_FAILED;
 	if(pScanThreadHandles != nullptr)
 	{
-		ret = ::WaitForMultipleObjects((DWORD)vechScanThread.size(), pScanThreadHandles, TRUE, 5000);
+		ret = WaitWithLinkTest(this, (DWORD)vechScanThread.size(), pScanThreadHandles, TRUE, 5000);
 	}
 	DWORD dwScanWaitElapsed = GetTickCount() - dwScanWaitBeginTick;
 	const BOOL bScanSuccess = (bAllScanStarted == TRUE && ret == WAIT_OBJECT_0);
@@ -567,12 +755,18 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 			::g_ScanManager.m_vecbScanRunning[idx] = FALSE;
 			if(idx < (long)::g_ScanManager.m_Control_Scan.size())
 			{
-				DWORD dwRecoverRet = ::WaitForSingleObject(::g_ScanManager.m_Control_Scan[idx].m_hSignal_Finish, 1000);
+				DWORD dwRecoverRet = WaitWithLinkTest(this, 1, &::g_ScanManager.m_Control_Scan[idx].m_hSignal_Finish, FALSE, 1000);
 				::g_Log.Log(_T("[SCAN_DIAG] Scan cancel recovery - Thread:%d Ret:%lu"), idx, dwRecoverRet);
 			}
 		}
 
-		m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON);
+		// 스캔 실패 통보 방식(ALARM/NG)은 PLC 재확인(Q4) 후 확정. 지금은 기존 신호를 유지하고,
+		// 비트 보존 쓰기로 RESP가 남지 않도록 REQ OFF 확인 시 폴링에서 끄게 한다.
+		if(m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON) != FALSE)
+		{
+			s_bStartRespOn = TRUE;
+			s_dwStartRespOnTick = GetTickCount();
+		}
 		::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : ON"));
 		DWORD dwMoveWriteTick = GetTickCount();
 		BOOL bMoveWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::OFF);
@@ -591,8 +785,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 	{
 		::g_ScanManager.m_bScanDone = TRUE;
 
-		m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::OFF);
-		::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.1] PLC_DO_RESP_Insp_Start : OFF"));
+		// RESP_Insp_Start는 Start 4-phase에서 REQ OFF 확인 후 끈다 (여기서 강제로 끄지 않음)
 		DWORD dwMoveWriteTick = GetTickCount();
 		BOOL bMoveWriteRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::ON);
 		DWORD dwMoveWriteElapsed = GetTickCount() - dwMoveWriteTick;
@@ -600,6 +793,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		{
 			m_bMoveReqOn = TRUE;
 			m_dwMoveReqOnTick = GetTickCount();
+			s_bMoveRespWarned = FALSE;
 		}
 		else
 		{

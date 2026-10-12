@@ -9,6 +9,10 @@
 static char THIS_FILE[] = __FILE__;
 #endif
 
+// 한 워드를 여러 출력 비트가 공유하므로(D30200, D30201) 비트 쓰기 시 워드 구성과 전송을 직렬화한다.
+// DLL export 클래스의 레이아웃을 바꾸지 않기 위해 헤더 대신 파일 내부에 둔다.
+static CCriticalSection s_csBitWordWrite;
+
 CCtrlPLC::CCtrlPLC()
 	: m_pMelsec(nullptr)
 	, m_pReadPLC2VisionData(nullptr)
@@ -157,6 +161,8 @@ BOOL CCtrlPLC::ReadVision2PLCData()
 
 BOOL CCtrlPLC::WriteVision2PLCData()
 {
+	CSingleLock lock(&s_csBitWordWrite, TRUE);
+
 	switch(::g_ConfigManager.m_nCustomer)
 	{
 	case (long)CUSTOMER::BORGWARNER:
@@ -235,6 +241,28 @@ BOOL CCtrlPLC::WriteData(SPLCData &data, const short value)
 	short buffer(0);
 
 	data.sValue = value;
+
+	if(data.nType == (long)PLC_MEMORY_TYPE::BIT)
+	{
+		CSingleLock lock(&s_csBitWordWrite, TRUE);
+
+		// 같은 주소의 다른 출력 비트는 저장된 현재값을 유지한다 (0으로 덮어쓰지 않음)
+		for(const auto &bit : ::g_PLCManager.m_sPLC.vecsVision2PLCData)
+		{
+			if(bit.nType == (long)PLC_MEMORY_TYPE::BIT && bit.nAddr == data.nAddr && bit.sValue == 1)
+			{
+				buffer = buffer | (short)(1 << bit.nBitNum);
+			}
+		}
+		SetPLCData(data, buffer);	// 대상 비트는 인자 값으로 확정
+
+		if(m_pMelsec->WritePLC(data.nAddr, 1, &buffer) == FALSE)
+		{
+			return FALSE;
+		}
+
+		return TRUE;
+	}
 
 	SetPLCData(data, buffer);
 
