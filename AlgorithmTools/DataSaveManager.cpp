@@ -201,6 +201,40 @@ void CDataSaveManager::ThreadDataSave()
 
 	SetDataSaveProcessing(FALSE);
 }
+// 레시피 파일명 접두어로 검사 구분을 정한다 (Pre -> Before, Pos -> After).
+static CString GetInspectionTypeFromRecipe(const CString& recipePathName)
+{
+	CString fileName = recipePathName;
+	int lastSlash = fileName.ReverseFind('\\');
+	if(lastSlash >= 0)
+	{
+		fileName = fileName.Mid(lastSlash + 1);
+	}
+
+	int dotPos = fileName.ReverseFind('.');
+	CString fileNameWithoutExt = (dotPos >= 0) ? fileName.Left(dotPos) : fileName;
+	CString prefix = fileNameWithoutExt.Left(3);
+
+	if(prefix == _T("Pre"))
+	{
+		return _T("Before");
+	}
+	if(prefix == _T("Pos"))
+	{
+		return _T("After");
+	}
+	return _T("Undefined");
+}
+
+// 시료 단위 폴더 키 (저장 요청 쪽 상태, m_csDataSaveQueue 안에서만 갱신).
+// Div 0이 들어오면 새 시료로 보고, 같은 검사 구분·바코드의 Div 1, 2는 Div 0의 스캔 시각을 따른다.
+static CString s_strSampleType(_T(""));
+static CString s_strSampleBarcode(_T(""));
+static CString s_strSampleTime(_T(""));
+
+// 저장 스레드 쪽: 최근 시료 폴더 (키 -> 폴더). 처리 순서가 섞여도 같은 시료는 같은 폴더를 쓴다.
+static std::deque<std::pair<CString, CString>> s_recentSampleFolders;
+
 void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const long camIdx, const long divIdx, CString time, const int result)
 {
 	SDataSaveJob job;
@@ -210,6 +244,7 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 	job.divIdx = divIdx;
 	job.result = result;
 	job.time = time;
+	job.inspectionType = GetInspectionTypeFromRecipe(::g_RecipeManager.m_currentRecipeName);	// 1) 요청 시점의 검사 구분 고정
 	job.manualInspection = FALSE;
 
 	if(method == DATA_SAVE::RAW_IMAGE)
@@ -248,6 +283,18 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 	}
 
 	::EnterCriticalSection(&m_csDataSaveQueue);
+	if(job.method == DATA_SAVE::RAW_IMAGE)
+	{
+		// 2) 시료 단위 폴더: Div 0에서 시료 기준 시각을 정하고 Div 1, 2는 그 시각을 따른다
+		if(s_strSampleTime == _T("") || s_strSampleType != job.inspectionType || s_strSampleBarcode != job.barcode ||
+			(job.divIdx == 0 && job.time != s_strSampleTime))
+		{
+			s_strSampleType = job.inspectionType;
+			s_strSampleBarcode = job.barcode;
+			s_strSampleTime = job.time;
+		}
+		job.cycleTime = s_strSampleTime;
+	}
 	m_queueDataSaveJob.push_back(job);
 	if(job.method == DATA_SAVE::RAW_IMAGE)
 	{
@@ -441,33 +488,18 @@ CString CDataSaveManager::GetRawImageSaveFolder(const SDataSaveJob& job)
 		scanTime = currentTime.Format(_T("%Y%m%d_%H%M%S"));
 	}
 
-	CString fileName = ::g_RecipeManager.m_currentRecipeName;
-	int lastSlash = fileName.ReverseFind('\\');
-	if(lastSlash >= 0)
-	{
-		fileName = fileName.Mid(lastSlash + 1);
-	}
+	// 1) 검사 구분은 저장 요청 시점에 정한 값 (수동 저장 등 값이 없을 때만 현재 레시피)
+	CString inspectionType = (job.inspectionType != _T("")) ? job.inspectionType : GetInspectionTypeFromRecipe(::g_RecipeManager.m_currentRecipeName);
 
-	int dotPos = fileName.ReverseFind('.');
-	CString fileNameWithoutExt = (dotPos >= 0) ? fileName.Left(dotPos) : fileName;
-	CString prefix = fileNameWithoutExt.Left(3);
-
-	CString inspectionType(_T("Undefined"));
-	if(prefix == _T("Pre"))
-	{
-		inspectionType = _T("Before");
-	}
-	else if(prefix == _T("Pos"))
-	{
-		inspectionType = _T("After");
-	}
+	// 2) 폴더는 시료 단위 (Div 0 스캔 시각 기준). 값이 없으면 기존처럼 이번 스캔 시각
+	CString sampleTime = (job.cycleTime != _T("")) ? job.cycleTime : scanTime;
 
 	CString year, month, day;
-	if(scanTime.GetLength() >= 8)
+	if(sampleTime.GetLength() >= 8)
 	{
-		year = scanTime.Left(4);
-		month = scanTime.Mid(4, 2);
-		day = scanTime.Mid(6, 2);
+		year = sampleTime.Left(4);
+		month = sampleTime.Mid(4, 2);
+		day = sampleTime.Mid(6, 2);
 	}
 	else
 	{
@@ -478,10 +510,19 @@ CString CDataSaveManager::GetRawImageSaveFolder(const SDataSaveJob& job)
 	}
 
 	CString cycleKey;
-	cycleKey.Format(_T("%s|%s|%s"), inspectionType, barcode, scanTime);
+	cycleKey.Format(_T("%s|%s|%s"), inspectionType, barcode, sampleTime);
 	if(cycleKey == m_strCurrentCycleKey && m_strCurrentSaveFolder != _T(""))
 	{
 		return m_strCurrentSaveFolder;
+	}
+	for(const auto &recent : s_recentSampleFolders)
+	{
+		if(recent.first == cycleKey)
+		{
+			m_strCurrentCycleKey = cycleKey;
+			m_strCurrentSaveFolder = recent.second;
+			return m_strCurrentSaveFolder;
+		}
 	}
 
 	CString strFullPath;
@@ -506,6 +547,11 @@ CString CDataSaveManager::GetRawImageSaveFolder(const SDataSaveJob& job)
 
 	m_strCurrentCycleKey = cycleKey;
 	m_strCurrentSaveFolder = strBcrPath;
+	s_recentSampleFolders.push_back(std::make_pair(cycleKey, strBcrPath));
+	while(s_recentSampleFolders.size() > 8)
+	{
+		s_recentSampleFolders.pop_front();
+	}
 	m_strCurrentBarcode = barcode;
 	m_strYear = year;
 	m_strMonth = month;

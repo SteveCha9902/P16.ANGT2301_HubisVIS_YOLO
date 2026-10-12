@@ -39,6 +39,8 @@ public:
 		DATA_SAVE method;
 		CString barcode;
 		CString time;
+		CString inspectionType;	// 저장 요청 시점의 검사 구분 (Before/After). 저장 스레드가 늦게 처리해도 바뀌지 않음
+		CString cycleTime;		// 시료 기준 시각 (Div 0 스캔 시각): 한 시료 6장을 한 폴더에 저장
 		long camIdx;
 		long divIdx;
 		int result;
