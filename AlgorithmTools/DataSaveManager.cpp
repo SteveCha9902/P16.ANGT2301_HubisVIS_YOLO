@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "DataSaveManager.h"
 
 #define BUF_MAX_SIZE 2048
@@ -653,7 +653,7 @@ void CDataSaveManager::ResultImageSave(const BOOL bManualInspection)
 			break;
 		}
 
-		// PLC가 ?�동 모드???�는 auto�? ?�동 모드???�는 Manual�??�작
+		// PLC가 ??동 모드????는 auto?? ??동 모드????는 Manual????작
 		auto overlayManager = ::g_InspectionManager.m_pInspection->m_pOverlayManager;
 
 		for(long nStep = DEBUG_RESULT; nStep <= DEBUG_RESULT_NG; nStep++)
@@ -725,7 +725,7 @@ void CDataSaveManager::ResultImageSave(const BOOL bManualInspection)
 
 		strPath.Format(_T("%s\\%s_%s_%d_%d_result_%s.jpg"), strSavePath, m_strBarcode, m_strTime, m_nCamIdx, m_nDivIdx, strResult);
 
-		// image->Save(strPath); // ?��?지 ?�?�안?�도�??�정
+		// image->Save(strPath); // ????지 ????안??도????정
 	}
 
 	delete image;
@@ -775,7 +775,7 @@ CString CDataSaveManager::MakeYOLOResultPath(const CString& originalPath)
 {
 	CString resultPath = originalPath;
 
-	// ?�일명에???�장???�치 찾기
+	// ?뚯씪紐낆뿉???뺤옣???꾩튂 李얘린
 	int dotPos = resultPath.ReverseFind('.');
 	if (dotPos != -1)
 	{
@@ -785,7 +785,7 @@ CString CDataSaveManager::MakeYOLOResultPath(const CString& originalPath)
 	return resultPath;
 }
 
-void CDataSaveManager::RawImageSave2(const BOOL bManualInspection) // 241223 sjpark ?�로??save ?�수 추�? 버전
+void CDataSaveManager::RawImageSave2(const BOOL bManualInspection) // 241223 sjpark ?덈줈??save ?⑥닔 異붽? 踰꾩쟾
 {
 	auto savePath = ::g_ConfigManager.m_strResultImageSavePath;
 
@@ -799,10 +799,10 @@ void CDataSaveManager::RawImageSave2(const BOOL bManualInspection) // 241223 sjp
 
 	CString strPath, strBcrPath, strTime;//CString strPath, strBcrPath;
 
-	// 6개의 ?��?지�?처리?�는 경우, ???�더 ?�성
+	// 6개의 ????지??처리??는 경우, ????더 ??성
 	if (m_ImageCount == 0)
 	{
-		// ?�재 ?�간 ?�보 ?�성
+		// ?꾩옱 ?쒓컙 ?뺣낫 ?앹꽦
 		CTime curTime(CTime::GetCurrentTime());
 		CString strFolderTime;
 		strFolderTime.Format(_T("%04d%02d%02d_%02d%02d"),
@@ -817,30 +817,30 @@ void CDataSaveManager::RawImageSave2(const BOOL bManualInspection) // 241223 sjp
 			{
 				break;
 			}
-			strBcrPath.Format(_T("%s\\%s_%s"), strSavePath, m_strBarcode, strTime);//LYS 241018 바코???�더�???중복???�하�??�해 ?�간??붙여???�더명을 ?�성.
+			strBcrPath.Format(_T("%s\\%s_%s"), strSavePath, m_strBarcode, strTime);//LYS 241018 諛붿퐫???대뜑紐???以묐났???쇳븯湲??꾪빐 ?쒓컙??遺숈뿬???대뜑紐낆쓣 ?앹꽦.
 			m_strBeforpath = strBcrPath;
 			break;
 		}
 		CreateDirectory(strBcrPath, nullptr);
 	}
 
-	// ?��?지 ?�일�??�성
+	// ????지 ??일????성
 	CString strFileName;
 	strFileName.Format(_T("%s\\%d_%d_raw.bmp"), strBcrPath, m_nCamIdx, m_nDivIdx);
 
-	// ?��?지 ?�??
+	// ????지 ????
 	BYTE* image = ::g_MemoryManager.GetByteImage(m_nCamIdx + m_nDivIdx * 2);
 	HUBSDK::ImageInterface::ImageSaveBMP(strFileName, image, m_nImageWidth, m_nImageHeight, 8,
 		CRect(0, 0, m_nImageWidth, m_nImageHeight), TRUE);
 
-	// ?��?지 ?�??카운??증�?
+	// ????지 ????카운??증??
 	m_ImageCount++;
 
-	// 6번째 ?��?지까�? ?�?�되�?카운??초기??
+	// 6번째 ????지까?? ????되??카운??초기??
 	if (m_ImageCount == 5)
 	{
-		m_ImageCount = 0;  // 카운??초기??
-		strBcrPath.Empty();  // ???�더�??�성?????�도�?초기??
+		m_ImageCount = 0;  // 移댁슫??珥덇린??
+		strBcrPath.Empty();  // ???대뜑瑜??앹꽦?????덈룄濡?珥덇린??
 	}
 }
 
