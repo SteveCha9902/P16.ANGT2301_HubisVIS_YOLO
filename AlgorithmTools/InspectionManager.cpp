@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "InspectionManager.h"
 #include "Inspection.h"
 #include "../VisionMain/DlgVisionMain.h"
@@ -29,7 +29,7 @@ void CInspectionManager::SetParent(CDlgVisionMain* pParent)
 {
 	m_pParent = pParent;
 
-	// Image Á¤º¸ ¼³Á¤ - SHK 2023.12.27
+	// Image ì •ë³´ ì„¤ì • - SHK 2023.12.27
 	m_nImageWidth = m_pParent->m_nImageWidth;
 	m_nImageHeight = m_pParent->m_nImageHeight;
 	m_nImageSize = m_pParent->m_nImageSize;
@@ -74,10 +74,10 @@ void CInspectionManager::InitInspectionThread()
 	for(long thread = 0; thread < (long)m_vecpInspection.size(); thread++)
 	{
 		m_vecpInspection[thread] = new CInspection;
-		m_vecpInspection[thread]->SetImageInfo(m_nImageWidth, m_nImageHeight, thread); // Image Á¤º¸ ¼³Á¤ - SHK 2023.12.27
+		m_vecpInspection[thread]->SetImageInfo(m_nImageWidth, m_nImageHeight, thread); // Image ì •ë³´ ì„¤ì • - SHK 2023.12.27
 	}
 
-	// Inspection Thread ÃÊ±âÈ­
+	// Inspection Thread ì´ˆê¸°í™”
 	m_Control_Inspection.resize(INSPECTION_THREAD_COUNT);
 	m_vecnCamIndex.resize(INSPECTION_THREAD_COUNT);
 	m_vecnDivIndex.resize(INSPECTION_THREAD_COUNT);
@@ -111,16 +111,16 @@ void CInspectionManager::InitInspectionThread()
 void CInspectionManager::FreeInspectionThread()
 {
 
-	// Inspection Class ¼Ò¸ê
+	// Inspection Class ì†Œë©¸
 
-	// ¸ðµç Thread¿¡°Ô ÀÏÀ» ±×¸¸ÇÏ¶ó°í ¾Ë¸°´Ù.
+	// ëª¨ë“  Threadì—ê²Œ ì¼ì„ ê·¸ë§Œí•˜ë¼ê³  ì•Œë¦°ë‹¤.
 	for(long nThread = long(m_Control_Inspection.size() - 1); nThread >= 0; nThread--)
 	{
 		m_vecbInspRunning[nThread] = FALSE;
 		::SetEvent(m_Control_Inspection[nThread].m_hSignal_Kill);
 	}
 
-	// Thread°¡ Á¾·áµÇ±â¸¦ ±â´Ù¸°´Ù.
+	// Threadê°€ ì¢…ë£Œë˜ê¸°ë¥¼ ê¸°ë‹¤ë¦°ë‹¤.
 	for(long nThread = long(m_Control_Inspection.size() - 1); nThread >= 0; nThread--)
 	{
 		DWORD dwWaitRet = ::WaitForSingleObject(m_Control_Inspection[nThread].m_Handle_Thread, 5000);
@@ -130,7 +130,7 @@ void CInspectionManager::FreeInspectionThread()
 		}
 	}
 
-	// °ü·Ã ÇÚµéÀ» ¸ðµÎ ´Ý´Â´Ù.
+	// ê´€ë ¨ í•¸ë“¤ì„ ëª¨ë‘ ë‹«ëŠ”ë‹¤.
 	if(m_pInspection != nullptr)
 	{
 		delete m_pInspection;
@@ -188,7 +188,7 @@ void CInspectionManager::ThreadInspection()
 		{
 		case WAIT_OBJECT_0: // Do Inspection
 		{
-			// °Ë»ç
+			// ê²€ì‚¬
 			::g_Log.Log(_T("Inspection Thread [%d] : Inspection Start"), nThreadID);
 
 			// Inspection Status...
@@ -210,7 +210,7 @@ void CInspectionManager::ThreadInspection()
 
 			::g_Log.Log(_T("Inspection Thread [%d] : Inspection Result : %s"), nThreadID, _T(""));
 
-			// °Ë»ç ³¡³ª¸é ´Ù½Ã Ready »óÅÂ·Î µ¹·Á ³õ´Â´Ù.
+			// ê²€ì‚¬ ëë‚˜ë©´ ë‹¤ì‹œ Ready ìƒíƒœë¡œ ëŒë ¤ ë†“ëŠ”ë‹¤.
 			::SetEvent(control.m_hSignal_Ready);
 
 			::g_Log.Log(_T("Inspection Thread [%d] : Inspection Done."), nThreadID);
@@ -262,7 +262,7 @@ void CInspectionManager::RunInsp(const long threadIndex)
 
 	switch(inspStep)
 	{
-	case INSP_SEQUENCE::INSPECTION_READY: // Inspection Ready. Á¡°Ë
+	case INSP_SEQUENCE::INSPECTION_READY: // Inspection Ready. ì ê²€
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::INSPECTION_READY"), threadIndex);
 
@@ -283,19 +283,19 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::INSPECTION_START"), threadIndex);
 		::g_Log.Log(_T("CInspection::DoInspection( camIndex : [%d]  divIndex : [%d]"), camIndex, divIndex);
 
-		// ÀÚµ¿
+		// ìžë™
 		if(inspection->DoInspection(camIndex, divIndex) == TRUE)
 		{
 			inspStep = INSP_SEQUENCE::INSPECTION_DONE;
 		}
-		else // °Ë»ç¿¡ ÀÌ»óÀÌ ÀÖ¾î Áß°£¿¡ ºüÁ®³ª°¬À» °æ¿ì ¹«Á¶°Ç INVALID Ã³¸®ÇØ¼­ °á°ú Àü¼ÛÇÑ´Ù.
+		else // ê²€ì‚¬ì— ì´ìƒì´ ìžˆì–´ ì¤‘ê°„ì— ë¹ ì ¸ë‚˜ê°”ì„ ê²½ìš° ë¬´ì¡°ê±´ INVALID ì²˜ë¦¬í•´ì„œ ê²°ê³¼ ì „ì†¡í•œë‹¤.
 		{
 			::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::INSPECTION_START - Inspection(cam: %d, div: %d) Error!!"), threadIndex, camIndex, divIndex);
 
 			inspStep = INSP_SEQUENCE::ERROR_STEP;
 		}
 
-		// 250712 ÀÓ½Ã Å×½ºÆ®
+		// 250712 ìž„ì‹œ í…ŒìŠ¤íŠ¸
 		/*::g_DataSaveManager.RawImageSave(TRUE);*/
 	}
 	break;
@@ -306,12 +306,12 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		inspStep = INSP_SEQUENCE::RESULT_DISPLAY;
 	}
 	break;
-	case INSP_SEQUENCE::RESULT_DISPLAY: // °á°ú Ç¥½Ã, Overlay¸¸ Ãß°¡ÇØÁØ´Ù.
+	case INSP_SEQUENCE::RESULT_DISPLAY: // ê²°ê³¼ í‘œì‹œ, Overlayë§Œ ì¶”ê°€í•´ì¤€ë‹¤.
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::RESULT_DISPLAY"), threadIndex);
 
-		// 250714 sjpark  Insp. Thread ºÒ·®Çö»óÀ¸·Î PostMessage -> SendMessage º¯°æ
-		// °á°ú Ç¥½Ã
+		// 250714 sjpark  Insp. Thread ë¶ˆëŸ‰í˜„ìƒìœ¼ë¡œ PostMessage -> SendMessage ë³€ê²½
+		// ê²°ê³¼ í‘œì‹œ
 		//::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_RESULT, camIndex, threadIndex);
 		// Result UI update: avoid indefinite worker-thread blocking.
 		DWORD_PTR dwUiResult = 0;
@@ -325,7 +325,7 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		inspStep = INSP_SEQUENCE::SEND_DATA;
 	}
 	break;
-	case INSP_SEQUENCE::SEND_DATA: // °á°ú°ª Àü¼Û or °á°ú°ª ÀúÀå
+	case INSP_SEQUENCE::SEND_DATA: // ê²°ê³¼ê°’ ì „ì†¡ or ê²°ê³¼ê°’ ì €ìž¥
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::SEND_DATA"), threadIndex);
 
@@ -336,7 +336,7 @@ void CInspectionManager::RunInsp(const long threadIndex)
 			m_vecpInspection[threadIndex]->m_vecResult[i].divIndex = divIndex;
 		}
 
-		// PLC·Î °á°ú Àü¼Û
+		// PLCë¡œ ê²°ê³¼ ì „ì†¡
 		switch(::g_ConfigManager.m_nCustomer)
 		{
 		case (long)CUSTOMER::BORGWARNER:
@@ -349,7 +349,7 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		inspStep = INSP_SEQUENCE::SAVE_RESULT_IMAGE;
 	}
 	break;
-	case INSP_SEQUENCE::SAVE_RESULT_IMAGE: // °á°ú Image ÀúÀå
+	case INSP_SEQUENCE::SAVE_RESULT_IMAGE: // ê²°ê³¼ Image ì €ìž¥
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::SAVE_RESULT_IMAGE"), threadIndex);
 
@@ -383,7 +383,7 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		inspStep = INSP_SEQUENCE::SEQUENCE_DONE;
 	}
 	break; 
-	case INSP_SEQUENCE::SEQUENCE_DONE: // Sequence ¿Ï·á
+	case INSP_SEQUENCE::SEQUENCE_DONE: // Sequence ì™„ë£Œ
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::SEQUENCE_DONE"), threadIndex);
 
