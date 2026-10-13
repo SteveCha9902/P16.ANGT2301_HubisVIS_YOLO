@@ -13,7 +13,7 @@
 #define PLC_START_REQ_OFF_WAIT_MS 1000		// RESP_Insp_Start ON 후 REQ_Insp_Start OFF 확인 대기 상한
 #define PLC_MOVE_RESP_WARN_MS 500			// REQ_Insp_Move ON 후 RESP 미수신 경고 (정상 최대 약 177 ms)
 #define PLC_MOVE_RESP_ALARM_MS 5000			// REQ_Insp_Move ON 후 RESP 미수신 시 ALARM ON
-#define PLC_RESULT_BARRIER_TIMEOUT_MS 2000	// 5단계: 검사 결과 기록 완료 대기 상한 (초과 시 NG + ALARM)
+#define PLC_RESULT_BARRIER_TIMEOUT_MS 5000	// 5단계: 검사 결과 기록 완료 대기 상한 (초과 시 InspRet 1 + ALARM)
 #define PLC_WAIT_SLICE_MS 50				// 스캔 대기 중 LinkTest 처리 간격
 
 #ifdef _DEBUG
@@ -805,13 +805,13 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		DWORD dwResultWait = GetTickCount() - dwResultWaitTick;
 		if(lResultCommitted < lResultExpected)
 		{
-			BOOL bNgRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 2);
+			BOOL bNgRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);	// 검사 NG 처리 미운영: 결과 대기 초과 시에도 OK(1) 전송, 이상은 ALARM으로 통지
 			BOOL bAlarmRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::ON);
 			if(bAlarmRet != FALSE)
 			{
 				s_bResultAlarmOn = TRUE;
 			}
-			::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d Inspection results not complete within %lu ms (%d/%d) - Write 30210 InspRet NG ret:%d, 30200.4 PLC_DO_ALARM ON ret:%d"),
+			::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d Inspection results not complete within %lu ms (%d/%d) - Write 30210 InspRet 1 ret:%d, 30200.4 PLC_DO_ALARM ON ret:%d"),
 				m_nStartSignalSeq, (unsigned long)dwResultWait, lResultCommitted, lResultExpected, bNgRet, bAlarmRet);
 		}
 		else
