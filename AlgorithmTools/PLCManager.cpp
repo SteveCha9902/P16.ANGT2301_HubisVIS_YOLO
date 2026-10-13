@@ -546,7 +546,7 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 	//::g_PLCSocketManager.m_pCtrlPLC->WriteDatasDouble(vecsVision2PLCData, startAddr);
 
 	auto &plcData = m_sPLC.vecsVision2PLCData;
-	if(::g_ConfigManager.m_bPLCAutoPass != FALSE) // PLC에 강제로 AutoPass 기능 적용 250228 PSJ
+	if(::g_ConfigManager.m_bPLCAutoPass == FALSE) // PLC에 강제로 AutoPass 기능 적용 250228 PSJ - 0: 실제 판정 전송, 1: 항상 OK(1) 전송 (2026-10-13 분기 반전 수정, 화면 AutoPass와 일치)
 	{
 		// 기존 방식
 		::g_PLCSocketManager.m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], (short)::g_Inspection.m_lTotalResult);
