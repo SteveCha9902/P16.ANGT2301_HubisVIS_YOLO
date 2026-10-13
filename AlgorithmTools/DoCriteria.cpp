@@ -115,6 +115,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 	{
 		SCriteriaParams value;
 		value = criteria;
+		long nAlarm = ALARM_OK; // 측정점별 알람 (전역 공유 시 이전 NG 알람이 OK 항목에 남는 문제 수정)
 
 		auto result = m_vecResult[idx];
 		auto blobRect = m_vecBlobInfoList[idx].m_roi;
@@ -132,7 +133,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 			m_sInspBlobResult.bResult = FALSE;
 			m_strNGtype = "Blob Size Error";
 			::g_Log.Log(_T("Inspe specErr :Blob "));
-			::g_DataSaveManager.m_nAlarm = ALARM_CRI_BLOB;
+			nAlarm = ALARM_CRI_BLOB;
 		}
 
 		// Blob 벽에서 얼마나 떨어져 있는지를 검사
@@ -177,7 +178,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 				m_sInspBlobResult.bResult = FALSE;
 				m_strNGtype = "Line Length Error";
 				::g_Log.Log(_T("Inspe specErr : Length "));
-				::g_DataSaveManager.m_nAlarm = ALARM_CRI_LENGTH;
+				nAlarm = ALARM_CRI_LENGTH;
 			}
 		}
 
@@ -202,15 +203,15 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 					m_sInspBlobResult.bResult = FALSE;
 					m_strNGtype = "Line Angle Error";
 					::g_Log.Log(_T("Inspe specErr : Angle "));
-					::g_DataSaveManager.m_nAlarm = ALARM_CRI_ANGLE;
+					nAlarm = ALARM_CRI_ANGLE;
 				}
 			}
 		}
 
 		m_vecCriteriaResult.push_back(value);
 
-		if(::g_DataSaveManager.m_nAlarm != ALARM_OK)
-			OverlayAlarm(idx, ::g_DataSaveManager.m_nAlarm, result);
+		if(nAlarm != ALARM_OK)
+			OverlayAlarm(idx, nAlarm, result);
 	}
 
 	if (m_vecResult.size() == 0)  // sjpark
@@ -239,6 +240,7 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 	{
 		SCriteriaParams value;
 		value = criteria;
+		long nAlarm = ALARM_OK; // 측정점별 알람 (전역 공유 시 이전 NG 알람이 OK 항목에 남는 문제 수정)
 
 		auto result = m_vecResult[idx];
 		auto blobRect = m_vecBlobInfoList2[idx].m_roi;
@@ -258,12 +260,12 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 			value.nErr = INSP_ERR;
 			m_sInspBlobResult.bResult = FALSE;
 			::g_Log.Log(_T("Inspe specErr : Blob2 "));
-			::g_DataSaveManager.m_nAlarm = ALARM_CRI_BLOB2;
+			nAlarm = ALARM_CRI_BLOB2;
 		}
 
 		m_vecCriteriaResult.push_back(value);
-		if (::g_DataSaveManager.m_nAlarm != ALARM_OK)
-			OverlayAlarm(idx, ::g_DataSaveManager.m_nAlarm, result);
+		if (nAlarm != ALARM_OK)
+			OverlayAlarm(idx, nAlarm, result);
 	}
 
 	if (m_vecResult.size() == 0)  // sjpark
@@ -294,6 +296,7 @@ BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 	{
 		SCriteriaParams value;
 		value = criteria;
+		long nAlarm = ALARM_OK; // 측정점별 알람 (전역 공유 시 이전 NG 알람이 OK 항목에 남는 문제 수정)
 
 		auto result = m_vecResult[idx];
 		auto boundingBoxRect = m_vecYOLOResultBox[idx];
@@ -316,12 +319,12 @@ BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 			value.nErr = INSP_ERR;
 			m_sInspBlobResult.bResult = FALSE;
 			::g_Log.Log(_T("Inspe specErr : Blob2 "));
-			::g_DataSaveManager.m_nAlarm = ALARM_CRI_BLOB2;
+			nAlarm = ALARM_CRI_BLOB2;
 		}
 
 		m_vecCriteriaResult.push_back(value);
-		if (::g_DataSaveManager.m_nAlarm != ALARM_OK)
-			OverlayAlarm(idx, ::g_DataSaveManager.m_nAlarm, result);
+		if (nAlarm != ALARM_OK)
+			OverlayAlarm(idx, nAlarm, result);
 	}
 
 	if (m_vecResult.size() == 0)  // sjpark
@@ -352,6 +355,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 	{
 		SCriteriaParams value;
 		value = criteria;
+		long nAlarm = ALARM_OK; // 측정점별 알람 (전역 공유 시 이전 NG 알람이 OK 항목에 남는 문제 수정)
 
 			auto result = m_vecResult[idx];
 			auto blobRect = m_vecBlobInfoList[idx].m_roi;
@@ -370,7 +374,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 				m_sInspEdgeResult.bResult = FALSE;
 				m_strNGtype = "Blob Size  Error";
 				::g_Log.Log(_T("Inspe specErr :Blob "));
-				::g_DataSaveManager.m_nAlarm = ALARM_BLOB;
+				nAlarm = ALARM_BLOB;
 			}
 
 			// Top Busbar Height 앙불판정
@@ -387,7 +391,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 					m_sInspEdgeResult.bResult = FALSE;
 					m_strNGtype = "Top Busbar Height Error";
 					::g_Log.Log(_T("Inspe specErr : Height "));
-					::g_DataSaveManager.m_nAlarm = ALARM_CRI_HEIGHT;
+					nAlarm = ALARM_CRI_HEIGHT;
 				}
 			}
 			// 250102 Between 기능 임시 제거
@@ -431,7 +435,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 					m_sInspEdgeResult.bResult = FALSE;
 					m_strNGtype = "Line Length Error";
 					::g_Log.Log(_T("Inspe specErr : Length "));
-					::g_DataSaveManager.m_nAlarm = ALARM_CRI_LENGTH;
+					nAlarm = ALARM_CRI_LENGTH;
 				}
 			}
 
@@ -456,13 +460,13 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 						m_sInspEdgeResult.bResult = FALSE;
 						m_strNGtype = "Line Angle Error";
 						::g_Log.Log(_T("Inspe specErr : Angle "));
-						::g_DataSaveManager.m_nAlarm = ALARM_CRI_ANGLE;
+						nAlarm = ALARM_CRI_ANGLE;
 					}
 				}
 			}
 
-		if (::g_DataSaveManager.m_nAlarm != ALARM_OK)
-			OverlayAlarm(idx, ::g_DataSaveManager.m_nAlarm, result);
+		if (nAlarm != ALARM_OK)
+			OverlayAlarm(idx, nAlarm, result);
 
 
 		m_vecCriteriaResult.push_back(value);
