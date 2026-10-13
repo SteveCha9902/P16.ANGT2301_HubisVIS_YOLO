@@ -1,4 +1,4 @@
-#include "pch.h"
+Ôªø#include "pch.h"
 #include "Inspection.h"
 
 #ifdef _DEBUG
@@ -27,7 +27,7 @@ BOOL CInspection::DoCriteria(long itemIndex, BOOL &bResult)
 	break;
 	case (long)ALGORITHM_SEQUENCE::DETECT_BLOB2:
 	{
-		// 250627 sjpark »ƒ∞ÀªÁ ∞·∞˙ ∆«¡§ YOLO / ∑Í∫£¿ÃΩ∫ º±≈√
+		// 250627 sjpark ÌõÑÍ≤ÄÏÇ¨ Í≤∞Í≥º ÌåêÏ†ï YOLO / Î£∞Î≤†Ïù¥Ïä§ ÏÑ†ÌÉù
 		if (g_ConfigManager.m_bUseAfterInspectionDL == TRUE)
 		{
 			SetCriteriaYOLO(itemIndex, bResult);
@@ -77,7 +77,7 @@ BOOL CInspection::DoCriteria(long itemIndex, BOOL &bResult)
 	}
 	if (itemIndex == 0)
 	{
-		::g_Inspection.m_lTotalResult = 1;//LYS 241016 totalresult √ ±‚»≠
+		::g_Inspection.m_lTotalResult = 1;//LYS 241016 totalresult Ï¥àÍ∏∞Ìôî
 		for (int i = 0; i < ::g_RecipeManager.m_nInspItemNum; i++) 
 		{
 			::g_InspectionManager.m_bResult[itemIndex] = TRUE;
@@ -119,7 +119,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 		auto result = m_vecResult[idx];
 		auto blobRect = m_vecBlobInfoList[idx].m_roi;
 
-		// Blob ≈©±‚∑Œ æÁ∫“∆«¡§
+		// Blob ÌÅ¨Í∏∞Î°ú ÏñëÎ∂àÌåêÏ†ï
 		if((blobRect.Width() > criteria.nBlobWidthMin && blobRect.Width() < criteria.nBlobWidthMax) &&
 			(blobRect.Height() > criteria.nBlobHeightMin && blobRect.Height() < criteria.nBlobHeightMax))
 		{
@@ -135,9 +135,9 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 			::g_DataSaveManager.m_nAlarm = ALARM_CRI_BLOB;
 		}
 
-		// Blob ∫Æø°º≠ æÛ∏∂≥™ ∂≥æÓ¡Æ ¿÷¥¬¡ˆ∏¶ ∞ÀªÁ
+		// Blob Î≤ΩÏóêÏÑú ÏñºÎßàÎÇò Îñ®Ïñ¥Ï†∏ ÏûàÎäîÏßÄÎ•º Í≤ÄÏÇ¨
 
-		// 250401 PSJ Between √ﬂ∞° ¡÷ºÆ√≥∏Æ - æ∆¡˜ ¥˙ ¡ˆø¸æÓº≠ √ﬂ∞° ¡÷ºÆ
+		// 250401 PSJ Between Ï∂îÍ∞Ä Ï£ºÏÑùÏ≤òÎ¶¨ - ÏïÑÏßÅ Îçú ÏßÄÏõ†Ïñ¥ÏÑú Ï∂îÍ∞Ä Ï£ºÏÑù
 		/*if(value.nErr == INSP_ERR_OK)
 		{
 			auto distStartX = fabs(blobRect.left - result.ptBlobStart.x) * ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
@@ -163,7 +163,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 			}
 		}*/
 
-		// Length ∆«¥‹...
+		// Length ÌåêÎã®...
 		if(value.nErr == INSP_ERR_OK)
 		{
 			if(result.fBlobLength > criteria.fLengthMin && result.fBlobLength < criteria.fLengthMax)
@@ -181,10 +181,10 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 			}
 		}
 
-		// Anlge ∆«¥‹...
+		// Anlge ÌåêÎã®...
 		if(value.nErr == INSP_ERR_OK)
 		{
-			if(result.fBlobAngle == 0.f) // 0µµ¿Ã∏È π´¡∂∞« OK
+			if(result.fBlobAngle == 0.f) // 0ÎèÑÏù¥Î©¥ Î¨¥Ï°∞Í±¥ OK
 			{
 				value.nErr = INSP_ERR_OK;
 				m_sInspBlobResult.bResult = TRUE;
@@ -221,7 +221,7 @@ BOOL CInspection::SetCriteriaBlob(long itemIndex, BOOL &bResult)
 		value.nErr = INSP_ERR;
 		m_sInspEdgeResult.bResult = FALSE;
 		m_strNGtype = "Threshold Error";
-		::g_Log.Log(_T("Inspe specErr :Threshold ¿Áº≥¡§ « ø‰"));
+		::g_Log.Log(_T("Inspe specErr :Threshold Ïû¨ÏÑ§Ï†ï ÌïÑÏöî"));
 
 		m_strTotalResult = _T("NG");
 		::g_InspectionManager.m_bResult[itemIndex] = 0;
@@ -246,7 +246,7 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 		result.fWeldWidth = (float)blobRect.Width() * ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
 		result.fWeldHeight = (float)blobRect.Height() * ::g_CalibrationManager.m_fPixelResolutionY[camIndex];
 
-		// Blob ≈©±‚∑Œ æÁ∫“∆«¡§
+		// Blob ÌÅ¨Í∏∞Î°ú ÏñëÎ∂àÌåêÏ†ï
 		if((result.fWeldWidth > criteria.fWeldWidthMin && result.fWeldWidth < criteria.fWeldWidthMax) &&
 			(result.fWeldHeight > criteria.fWeldHeightMin && result.fWeldHeight < criteria.fWeldHeightMax))
 		{
@@ -274,7 +274,7 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 		value.nErr = INSP_ERR;
 		m_sInspEdgeResult.bResult = FALSE;
 		m_strNGtype = "Threshold Error";
-		::g_Log.Log(_T("Inspe specErr :Threshold ¿Áº≥¡§ « ø‰"));
+		::g_Log.Log(_T("Inspe specErr :Threshold Ïû¨ÏÑ§Ï†ï ÌïÑÏöî"));
 
 
 		m_strTotalResult = _T("NG");
@@ -284,7 +284,7 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 	return TRUE;
 }
 
-// 250627 sjpark  SetCriteriaBlob2 ∫•ƒ°∏∂≈∑
+// 250627 sjpark  SetCriteriaBlob2 Î≤§ÏπòÎßàÌÇπ
 BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 {
 	auto criteria = ::g_RecipeManager.m_vecsInspItem[itemIndex].sCriteria;
@@ -304,7 +304,7 @@ BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 		result.fWeldWidth = yoloW * ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
 		result.fWeldHeight = yoloH * ::g_CalibrationManager.m_fPixelResolutionY[camIndex];
 
-		// Blob ≈©±‚∑Œ æÁ∫“∆«¡§
+		// Blob ÌÅ¨Í∏∞Î°ú ÏñëÎ∂àÌåêÏ†ï
 		if ((result.fWeldWidth > criteria.fWeldWidthMin && result.fWeldWidth < criteria.fWeldWidthMax) &&
 			(result.fWeldHeight > criteria.fWeldHeightMin && result.fWeldHeight < criteria.fWeldHeightMax))
 		{
@@ -332,7 +332,7 @@ BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 		value.nErr = INSP_ERR;
 		m_sInspEdgeResult.bResult = FALSE;
 		m_strNGtype = "Threshold Error";
-		::g_Log.Log(_T("Inspe specErr :Threshold ¿Áº≥¡§ « ø‰"));
+		::g_Log.Log(_T("Inspe specErr :Threshold Ïû¨ÏÑ§Ï†ï ÌïÑÏöî"));
 
 
 		m_strTotalResult = _T("NG");
@@ -357,7 +357,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 			auto blobRect = m_vecBlobInfoList[idx].m_roi;
 
 			 
-			// Blob ≈©±‚∑Œ æÁ∫“∆«¡§
+			// Blob ÌÅ¨Í∏∞Î°ú ÏñëÎ∂àÌåêÏ†ï
 			if ((blobRect.Width() > criteria.nBlobWidthMin && blobRect.Width() < criteria.nBlobWidthMax) &&
 				(blobRect.Height() > criteria.nBlobHeightMin && blobRect.Height() < criteria.nBlobHeightMax))
 			{
@@ -373,7 +373,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 				::g_DataSaveManager.m_nAlarm = ALARM_BLOB;
 			}
 
-			// Top Busbar Height æ”∫“∆«¡§
+			// Top Busbar Height ÏïôÎ∂àÌåêÏ†ï
 			if (value.nErr == INSP_ERR_OK)
 			{
 				if (result.fEdgeTopBusbarHeight > criteria.fTopBusbarHeightMin && result.fEdgeTopBusbarHeight < criteria.fTopBusbarHeightMax)
@@ -390,8 +390,8 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 					::g_DataSaveManager.m_nAlarm = ALARM_CRI_HEIGHT;
 				}
 			}
-			// 250102 Between ±‚¥… ¿”Ω√ ¡¶∞≈
-			//// Blob ∫Æø°º≠ æÛ∏∂≥™ ∂≥æÓ¡Æ ¿÷¥¬¡ˆ∏¶ ∞ÀªÁ
+			// 250102 Between Í∏∞Îä• ÏûÑÏãú Ï†úÍ±∞
+			//// Blob Î≤ΩÏóêÏÑú ÏñºÎßàÎÇò Îñ®Ïñ¥Ï†∏ ÏûàÎäîÏßÄÎ•º Í≤ÄÏÇ¨
 			//if (value.nErr == INSP_ERR_OK)
 			//{
 			//	auto distStartX = abs(blobRect.left - result.ptStartResult.x) * ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
@@ -417,7 +417,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 			//	}
 			//}
 
-			// Length ∆«¥‹...
+			// Length ÌåêÎã®...
 			if (value.nErr == INSP_ERR_OK)
 			{
 				if (result.fEdgeLength > criteria.fLengthMin && result.fEdgeLength < criteria.fLengthMax)
@@ -435,10 +435,10 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 				}
 			}
 
-			// Anlge ∆«¥‹...
+			// Anlge ÌåêÎã®...
 			if (value.nErr == INSP_ERR_OK)
 			{
-				if (result.fEdgeAngle == 0.f) // 0µµ¿Ã∏È π´¡∂∞« OK
+				if (result.fEdgeAngle == 0.f) // 0ÎèÑÏù¥Î©¥ Î¨¥Ï°∞Í±¥ OK
 				{
 					value.nErr = INSP_ERR_OK;
 					m_sInspEdgeResult.bResult = TRUE;
@@ -466,7 +466,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 
 
 		m_vecCriteriaResult.push_back(value);
-		//if (m_sInspEdgeResult.bResult == FALSE) //LYS ø°∑Ø≈∏¿‘ µΩ∫«√∑π¿Ã
+		//if (m_sInspEdgeResult.bResult == FALSE) //LYS ÏóêÎü¨ÌÉÄÏûÖ ÎîîÏä§ÌîåÎ†àÏù¥
 		//{
 		//	auto pt = CPoint(0, result.rtBlobROI.bottom + 300);
 		//	strTemp.Format(_T("%s"), m_strNGtype);
@@ -487,7 +487,7 @@ BOOL CInspection::SetCriteriaEdge(long itemIndex, BOOL &bResult)
 		value.nErr = INSP_ERR;
 		m_sInspEdgeResult.bResult = FALSE;
 		m_strNGtype = "Threshold Error";
-		::g_Log.Log(_T("Inspe specErr :Threshold ¿Áº≥¡§ « ø‰"));
+		::g_Log.Log(_T("Inspe specErr :Threshold Ïû¨ÏÑ§Ï†ï ÌïÑÏöî"));
 
 
 		m_strTotalResult = _T("NG");

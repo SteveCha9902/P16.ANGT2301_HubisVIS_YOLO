@@ -1,4 +1,4 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "PLCManager.h"
 
 #ifdef _DEBUG
@@ -30,7 +30,7 @@ void CPLCManager::InitParameters()
 {
 	m_strPath.Format(_T("%s\\Config\\PLCMap.ini"), m_strCurPath);
 
-	//ÃÊ±âÈ­
+	//ì´ˆê¸°í™”
 	m_sPLC.Init();
 
 	m_nUseRecipeNum = 1;
@@ -39,7 +39,7 @@ void CPLCManager::InitParameters()
 
 	m_vecstrUseRecipe.push_back(_T("Default.recipe"));
 
-	// ÀÓ½Ã
+	// ì„ì‹œ
 	for(int i = 0; i < 3; i++)
 	{
 		m_fPLCPosX[i] = 0.f;
@@ -292,8 +292,8 @@ BOOL CPLCManager::GetInitialize()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Àåºñ¸¶´Ù °á°ú Àü¼Û ÁÖ¼Ò ¹× Data °¡ ´Ù¸£¹Ç·Î ÇÔ¼ö ºĞ¸®
-// Borgwarner Çâ ¹ö½º¹Ù ¿ëÁ¡±â Àü¿ë SetResultData
+// ì¥ë¹„ë§ˆë‹¤ ê²°ê³¼ ì „ì†¡ ì£¼ì†Œ ë° Data ê°€ ë‹¤ë¥´ë¯€ë¡œ í•¨ìˆ˜ ë¶„ë¦¬
+// Borgwarner í–¥ ë²„ìŠ¤ë°” ìš©ì ê¸° ì „ìš© SetResultData
 void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResult, std::vector<SCriteriaParams> vecCriteriaResult, int idivIndex)
 {
 	::g_Log.Log(_T("SetResultData_forBorgwarner Start"));
@@ -310,7 +310,7 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 	float fResolutionX = ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
 	float fResolutionY = ::g_CalibrationManager.m_fPixelResolutionY[camIndex];
 
-	// PLC¿¡¼­ ¹Ş¾Æ¿Â ½ºÅ×ÀÌÁö ÁÂÇ¥
+	// PLCì—ì„œ ë°›ì•„ì˜¨ ìŠ¤í…Œì´ì§€ ì¢Œí‘œ
 	float fStageX = m_sPLC.vecsPLC2VisionData[(long)BORGWARNER::P2V_ADDR_NAME::PLC_IN_Scan_Pos_X].nValue / 10000.f;
 	float fStageY = m_sPLC.vecsPLC2VisionData[(long)BORGWARNER::P2V_ADDR_NAME::PLC_IN_Scan_Pos_Y].nValue / 10000.f;
 	//float fStageX = 100;
@@ -326,28 +326,28 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 		fHalfOffsetY *= -1.f;
 	}
 
-	// ÀÓ½Ã
+	// ì„ì‹œ
 	m_fPLCPosX[divIndex] = fStageX;
 	m_fPLCPosY[divIndex] = fStageY;
 
-	// ÀÓ½Ã
-	// ±âÁ¸ ±âÁØ À§Ä¡...		float fX = 201.84f;		float fY = 833.86f;
+	// ì„ì‹œ
+	// ê¸°ì¡´ ê¸°ì¤€ ìœ„ì¹˜...		float fX = 201.84f;		float fY = 833.86f;
 
-	// »õ ±âÁØ À§Ä¡
+	// ìƒˆ ê¸°ì¤€ ìœ„ì¹˜
 	float fX = 201.84f;
 	float fY = 1233.86f;//float fY = 1033.86f;   //4733
-	::g_Log.Log(_T("SetResultData_forBorgwarner ÀÓ½ÃÁÂÇ¥ ÀÔ·Â"));
+	::g_Log.Log(_T("SetResultData_forBorgwarner ì„ì‹œì¢Œí‘œ ì…ë ¥"));
 
-	float fXPLC = m_fPLCPosX[0] + ((fX - fCenterX) * fResolutionX); // ÀÓ½Ã ±âÁØ À§Ä¡ X ÁÂÇ¥
-	float fYPLC = m_fPLCPosY[0] + ((fY - fCenterY) * fResolutionY);	// ÀÓ½Ã ±âÁØ À§Ä¡ Y ÁÂÇ¥
+	float fXPLC = m_fPLCPosX[0] + ((fX - fCenterX) * fResolutionX); // ì„ì‹œ ê¸°ì¤€ ìœ„ì¹˜ X ì¢Œí‘œ
+	float fYPLC = m_fPLCPosY[0] + ((fY - fCenterY) * fResolutionY);	// ì„ì‹œ ê¸°ì¤€ ìœ„ì¹˜ Y ì¢Œí‘œ
 
-	// ±âÁ¸ ¹ö½º¹ÙµÂ µ¿ÀÏÇÏ°Ô °¢ Æ÷ÀÎÆ®¸¶´Ù X, Y, Z¸¸ º¸³»µµ·Ï °íÁ¤
-	// DATA_COUNT == 6À¸·Î °íÁ¤µÊ (start, end)
-	// 2D °Ë»çÀÌ¹Ç·Î Z°ªÀº Á¸ÀçÇÏÁö ¾Ê¾Æ Z°ª ÀÛ¼º À§Ä¡¿¡´Â 0 ÀÛ¼º
+	// ê¸°ì¡´ ë²„ìŠ¤ë°”ë  ë™ì¼í•˜ê²Œ ê° í¬ì¸íŠ¸ë§ˆë‹¤ X, Y, Zë§Œ ë³´ë‚´ë„ë¡ ê³ ì •
+	// DATA_COUNT == 6ìœ¼ë¡œ ê³ ì •ë¨ (start, end)
+	// 2D ê²€ì‚¬ì´ë¯€ë¡œ Zê°’ì€ ì¡´ì¬í•˜ì§€ ì•Šì•„ Zê°’ ì‘ì„± ìœ„ì¹˜ì—ëŠ” 0 ì‘ì„±
 	// Start.x, Start.y, Start.z, End.x, End.y, End.z
 	float fData[(long)BORGWARNER::DATA::DATA_COUNT] = {0,};
 
-	// ÀÓ½Ã °¢ ÇÉ¸¶´Ù °£°İ IWS¿Í 30·Î ÇùÀÇ
+	// ì„ì‹œ ê° í•€ë§ˆë‹¤ ê°„ê²© IWSì™€ 30ë¡œ í˜‘ì˜
 	long dataCount(15);
 	long startIdx(0);
 
@@ -379,8 +379,8 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 
 	BOOL bResult = TRUE; // 1 : OK, 2 : NG
 
-	// ÀÓ½Ã
-	// cam0 -> 1°³Â¥¸®, cam1 -> 3°³Â¥¸®
+	// ì„ì‹œ
+	// cam0 -> 1ê°œì§œë¦¬, cam1 -> 3ê°œì§œë¦¬
 	std::vector<SPLCData> vecsVision2PLCData;
 	long index(startIdx);
 	if((long)vecResult.size() != 1 && (long)vecResult.size() != 3)
@@ -425,7 +425,7 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 				length = vecResult[idx].fBlobLength;
 				angle = vecResult[idx].fBlobAngle;
 				break;
-			case (long)ALGORITHM_SEQUENCE::DETECT_BLOB2: // ÈÄ°Ë»ç´Â PLC¿¡ Àü¼ÛÇÏÁö ¾Ê´Â´Ù.
+			case (long)ALGORITHM_SEQUENCE::DETECT_BLOB2: // í›„ê²€ì‚¬ëŠ” PLCì— ì „ì†¡í•˜ì§€ ì•ŠëŠ”ë‹¤.
 				break;
 			}
 
@@ -442,8 +442,8 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 			{
 				fData[dataIndex] = fData[dataIndex] + fOffsetY;
 			}
-			// ±âÁ¸ ±âÁØ À§Ä¡ ±âÁØ fData[dataIndex] = (fData[dataIndex] - fYPLC) * 100.f;
-			fData[dataIndex] = (fYPLC - fData[dataIndex]) * 100.f;	// »õ ±âÁØÀ§Ä¡ ±âÁØ
+			// ê¸°ì¡´ ê¸°ì¤€ ìœ„ì¹˜ ê¸°ì¤€ fData[dataIndex] = (fData[dataIndex] - fYPLC) * 100.f;
+			fData[dataIndex] = (fYPLC - fData[dataIndex]) * 100.f;	// ìƒˆ ê¸°ì¤€ìœ„ì¹˜ ê¸°ì¤€
 			dataIndex++;
 
 			fData[dataIndex] = 0;
@@ -458,8 +458,8 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 			{
 				fData[dataIndex] = fData[dataIndex] + fOffsetY;
 			}
-			fData[dataIndex] = (fYPLC - fData[dataIndex]) * 100.f;	// »õ ±âÁØÀ§Ä¡ ±âÁØ
-			// ±âÁ¸ ±âÁØÀ§Ä¡ ±âÁØ fData[dataIndex] = (fData[dataIndex] - fYPLC) * 100.f;
+			fData[dataIndex] = (fYPLC - fData[dataIndex]) * 100.f;	// ìƒˆ ê¸°ì¤€ìœ„ì¹˜ ê¸°ì¤€
+			// ê¸°ì¡´ ê¸°ì¤€ìœ„ì¹˜ ê¸°ì¤€ fData[dataIndex] = (fData[dataIndex] - fYPLC) * 100.f;
 
 			dataIndex++;
 
@@ -496,8 +496,8 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 
 	short nResult = (bResult == TRUE) ? 1 : 2; // 1 : OK, 2 : NG 
 
-	// °Ë»ç°á°ú...
-	// Data¿Í PLC Address ½ÃÀÛÁÖ¼Ò¸¦ ³Ñ°ÜÁÖ¸é ÇÑ¹ø¿¡ ¾²ÀÚ
+	// ê²€ì‚¬ê²°ê³¼...
+	// Dataì™€ PLC Address ì‹œì‘ì£¼ì†Œë¥¼ ë„˜ê²¨ì£¼ë©´ í•œë²ˆì— ì“°ì
 	::g_PLCSocketManager.m_pCtrlPLC->WriteDatasDouble(vecsVision2PLCData, startAddr);
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	/*m_nJudge = m_nJudge + nResult;
@@ -541,20 +541,20 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	// °Ë»ç°á°ú...
-	// Data¿Í PLC Address ½ÃÀÛÁÖ¼Ò¸¦ ³Ñ°ÜÁÖ¸é ÇÑ¹ø¿¡ ¾²ÀÚ
+	// ê²€ì‚¬ê²°ê³¼...
+	// Dataì™€ PLC Address ì‹œì‘ì£¼ì†Œë¥¼ ë„˜ê²¨ì£¼ë©´ í•œë²ˆì— ì“°ì
 	//::g_PLCSocketManager.m_pCtrlPLC->WriteDatasDouble(vecsVision2PLCData, startAddr);
 
 	auto &plcData = m_sPLC.vecsVision2PLCData;
-	if(::g_ConfigManager.m_bPLCAutoPass != FALSE) // PLC¿¡ °­Á¦·Î AutoPass ±â´É Àû¿ë 250228 PSJ
+	if(::g_ConfigManager.m_bPLCAutoPass != FALSE) // PLCì— ê°•ì œë¡œ AutoPass ê¸°ëŠ¥ ì ìš© 250228 PSJ
 	{
-		// ±âÁ¸ ¹æ½Ä
+		// ê¸°ì¡´ ë°©ì‹
 		::g_PLCSocketManager.m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], (short)::g_Inspection.m_lTotalResult);
 		::g_Log.Log(_T("PLC ::g_Inspection.m_lTotalResult, : %d"), ::g_Inspection.m_lTotalResult);
 	}
 	else
 	{
-		// Auto Pass ¹æ½Ä
+		// Auto Pass ë°©ì‹
 		::g_PLCSocketManager.m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1 /*(short)::g_Inspection.m_lTotalResult*/);
 		::g_Log.Log(_T("PLC ::g_Inspection.m_lTotalResult, : %d [Applying AutoPass]"), ::g_Inspection.m_lTotalResult);
 	}
