@@ -3,6 +3,9 @@
 실행: python review_labels.py            (data/review_list.txt 순서, 검수 안 한 첫 영상부터)
       python review_labels.py --all      (처음부터)
       python review_labels.py --name <영상이름>  (그 영상부터, 검수 완료 영상 다시 고칠 때)
+      python review_labels.py --spatter  (spatter 검수: After 영상만, make_spatter_candidates.py 후보를 노란 점선으로 표시)
+        후보 클릭 = spatter로 확정,  Y = 이 영상 후보 모두 확정,  확정하지 않은 후보는 저장하지 않는다
+        진행 기록: data/spatter_reviewed.txt (다시 실행하면 이어서)
 먼저 한 번: python convert_box_labels.py (기존 박스 초안 → 타원 초안)
 
 조작
@@ -36,8 +39,10 @@ import ellipse_labels as el
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
 ELLIPSES = DATA / "ellipses"
+CANDIDATES = DATA / "spatter_candidates"
 CLASS_NAMES = ["welding", "spatter"]
 CLASS_COLORS = ["#ff3030", "#30c0ff"]
+CANDIDATE_COLOR = "#ffd400"
 HANDLE = 8          # 점 잡기 범위 (화면 픽셀)
 ROTATE_OFFSET = 30  # 회전 점을 축 끝에서 띄우는 거리 (화면 픽셀)
 MIN_AXIS = 2.0      # 축 최소 길이 (영상 픽셀)
@@ -45,7 +50,7 @@ SPATTER_DIAMETER = 24.0  # 클릭으로 만드는 spatter 원 지름 (영상 픽
 
 
 class Reviewer:
-    def __init__(self, root: tk.Tk, names: list[str], start: int):
+    def __init__(self, root: tk.Tk, names: list[str], start: int, spatter_mode: bool = False):
         self.root = root
         self.names = names
         self.index = start
@@ -53,8 +58,14 @@ class Reviewer:
         reviewed_file = DATA / "reviewed.txt"
         if reviewed_file.exists():
             self.reviewed = set(reviewed_file.read_text(encoding="utf-8").split())
+        # spatter 모드: 후보 표시, 진행 기록은 spatter_reviewed.txt
+        self.spatter_mode = spatter_mode
+        self.spatter_done = set()
+        if spatter_mode and (DATA / "spatter_reviewed.txt").exists():
+            self.spatter_done = set((DATA / "spatter_reviewed.txt").read_text(encoding="utf-8").split())
+        self.cands: list[list[float]] = []
 
-        self.current_class = 0
+        self.current_class = 1 if spatter_mode else 0
         self.selected: int | None = None
         self.drag_mode = None  # "new" | "move" | ("axis", 0|1, ±1) | "rotate"
         self.drag_start = (0.0, 0.0)
@@ -84,11 +95,12 @@ class Reviewer:
                         ("q", lambda e: self.rotate(-1.0)), ("e", lambda e: self.rotate(1.0)),
                         ("Q", lambda e: self.rotate(-0.1)), ("E", lambda e: self.rotate(0.1)),
                         ("<bracketleft>", lambda e: self.resize(0.9)), ("<bracketright>", lambda e: self.resize(1.1)),
+                        ("y", lambda e: self.accept_all()), ("Y", lambda e: self.accept_all()),
                         ("f", lambda e: self.fit()), ("<Escape>", lambda e: self.select(None)),
                         ("<Control-z>", lambda e: self.load())]:
             root.bind(key, fn)
         # 한글 입력 상태에서는 D가 'ㅇ'처럼 들어와 위 단축키가 동작하지 않으므로 같은 자판 위치의 자모도 받는다
-        hangul = {"ㅇ": lambda: self.go(1), "ㅁ": lambda: self.go(-1), "ㄹ": self.fit,
+        hangul = {"ㅇ": lambda: self.go(1), "ㅁ": lambda: self.go(-1), "ㄹ": self.fit, "ㅛ": self.accept_all,
                   "ㅂ": lambda: self.rotate(-1.0), "ㄷ": lambda: self.rotate(1.0),
                   "ㅃ": lambda: self.rotate(-0.1), "ㄸ": lambda: self.rotate(0.1)}
         root.bind("<Key>", lambda e: hangul[e.char]() if e.char in hangul else None)
@@ -110,6 +122,12 @@ class Reviewer:
         self.label_path = ELLIPSES / f"{name}.txt"
         self.items = el.load(self.label_path)
         self.selected = None
+        # 아직 spatter 검수를 안 한 영상만 후보를 보여 준다. 이미 같은 자리에 spatter 라벨이 있으면 뺀다
+        self.cands = []
+        if self.spatter_mode and name not in self.spatter_done:
+            for c in el.load(CANDIDATES / f"{name}.txt"):
+                if not any(b[0] == 1 and math.hypot(b[1] - c[1], b[2] - c[2]) < max(b[3], c[3]) / 2 for b in self.items):
+                    self.cands.append(c)
         self.fit()
 
     def fit(self):
@@ -148,6 +166,11 @@ class Reviewer:
             sx, sy = self.to_screen(ix0, iy0)
             c.create_image(sx, sy, anchor="nw", image=self.photo)
 
+        for _, cx, cy, w, h, a in self.cands:
+            sx, sy = self.to_screen(cx, cy)
+            r = max(w / 2 * self.scale, 4) + 6
+            c.create_oval(sx - r, sy - r, sx + r, sy + r, outline=CANDIDATE_COLOR, width=2, dash=(3, 3))
+
         for i, (cls, cx, cy, w, h, a) in enumerate(self.items):
             color = CLASS_COLORS[cls % len(CLASS_COLORS)]
             sel = i == self.selected
@@ -177,6 +200,9 @@ class Reviewer:
         if self.selected is not None:
             _, cx, cy, w, h, a = self.items[self.selected]
             sel = f"   선택: W {w:.1f} H {h:.1f} px  각도 {a:+.2f}°  중심 ({cx:.0f}, {cy:.0f})"
+        if self.spatter_mode:
+            done = len([n for n in self.names if n in self.spatter_done])
+            sel += f"   [spatter 검수 {done}/{len(self.names)}] 후보 {len(self.cands)}개: 클릭=확정, Y=모두 확정"
         inside = self.spatter_inside_bead()
         if inside:
             sel += f"   ※ 비드 안 spatter {inside}개 (비드에 붙은 덩어리는 welding에 포함)"
@@ -194,6 +220,19 @@ class Reviewer:
                 return kind
         return None
 
+    def hit_candidate(self, sx, sy):
+        for i, (_, cx, cy, w, h, a) in enumerate(self.cands):
+            px, py = self.to_screen(cx, cy)
+            if math.hypot(px - sx, py - sy) <= max(w / 2 * self.scale, 4) + 6 + HANDLE / 2:
+                return i
+        return None
+
+    def accept_all(self):
+        """이 영상의 남은 후보를 모두 spatter 라벨로 확정"""
+        self.items.extend([1] + c[1:] for c in self.cands)
+        self.cands = []
+        self.redraw()
+
     def hit_item(self, x, y):
         # 작은 타원을 먼저 고른다 (겹칠 때 spatter 선택이 쉽도록)
         margin = HANDLE / self.scale / 2
@@ -210,7 +249,13 @@ class Reviewer:
         self.canvas.focus_set()
         x, y = self.to_image(e.x, e.y)
         handle = self.hit_handle(e.x, e.y)
-        if handle is not None:
+        cand = self.hit_candidate(e.x, e.y) if handle is None else None
+        if cand is not None:
+            # 후보를 spatter 라벨로 확정하고 바로 선택 (끌면 위치 조정)
+            self.items.append([1] + self.cands.pop(cand)[1:])
+            self.selected = len(self.items) - 1
+            self.drag_mode = "move"
+        elif handle is not None:
             self.drag_mode = handle
         else:
             hit = self.hit_item(x, y)
@@ -319,7 +364,15 @@ class Reviewer:
     def save(self):
         el.save(self.label_path, self.items, MIN_AXIS)
         self.reviewed.add(self.names[self.index])
-        (DATA / "reviewed.txt").write_text("\n".join(n for n in self.names if n in self.reviewed) + "\n", encoding="utf-8")
+        # 다른 모드에서 연 목록에 없는 영상의 검수 기록도 잃지 않도록 기존 기록과 합친다
+        old = set((DATA / "reviewed.txt").read_text(encoding="utf-8").split()) if (DATA / "reviewed.txt").exists() else set()
+        self.reviewed |= old
+        (DATA / "reviewed.txt").write_text("\n".join(sorted(self.reviewed)) + "\n", encoding="utf-8")
+        if self.spatter_mode:
+            # 확정하지 않은 후보는 버린다 (이 영상은 spatter 검수 완료)
+            self.cands = []
+            self.spatter_done.add(self.names[self.index])
+            (DATA / "spatter_reviewed.txt").write_text("\n".join(sorted(self.spatter_done)) + "\n", encoding="utf-8")
 
     def go(self, step):
         self.save()
@@ -335,6 +388,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--all", action="store_true", help="검수 여부와 관계없이 처음부터")
     parser.add_argument("--name", help="이 영상(확장자 없는 이름)부터 연다. 검수 완료 영상을 다시 고칠 때")
+    parser.add_argument("--spatter", action="store_true", help="spatter 검수 모드 (After 영상, 후보 표시)")
     args = parser.parse_args()
 
     if not ELLIPSES.exists():
@@ -344,6 +398,12 @@ def main():
         raise SystemExit("data/review_list.txt가 비어 있습니다. make_draft_labels.py를 먼저 실행하세요.")
     reviewed = set((DATA / "reviewed.txt").read_text(encoding="utf-8").split()) if (DATA / "reviewed.txt").exists() else set()
     start = 0 if args.all else next((i for i, n in enumerate(names) if n not in reviewed), 0)
+    if args.spatter:
+        if not CANDIDATES.exists():
+            raise SystemExit("data/spatter_candidates가 없습니다. python make_spatter_candidates.py를 먼저 실행하세요.")
+        names = [n for n in names if "_after_" in n]
+        done = set((DATA / "spatter_reviewed.txt").read_text(encoding="utf-8").split()) if (DATA / "spatter_reviewed.txt").exists() else set()
+        start = 0 if args.all else next((i for i, n in enumerate(names) if n not in done), 0)
     if args.name:
         if args.name not in names:
             raise SystemExit(f"review_list.txt에 없는 영상입니다: {args.name}")
@@ -351,7 +411,7 @@ def main():
 
     root = tk.Tk()
     root.geometry("1400x1000")
-    Reviewer(root, names, start)
+    Reviewer(root, names, start, args.spatter)
     root.mainloop()
 
 

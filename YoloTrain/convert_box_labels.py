@@ -2,6 +2,7 @@
 
 - 박스에 내접하는 기울기 0 타원을 만든다. 검수 도구에서 모양·기울기를 고친다.
 - 처음 실행할 때 data/labels를 data/labels_box로 백업한다. 이후 data/labels는 train.py가 타원에서 다시 만든다.
+- 새 영상(make_draft_labels.py로 추가, 백업에 없음)은 data/labels의 박스 초안을 읽는다.
 - 이미 타원 라벨이 있는 영상은 건드리지 않는다(--overwrite로 강제).
 
 실행: python convert_box_labels.py
@@ -38,7 +39,11 @@ def main():
             continue
         w, h = Image.open(img_path).size
         ellipses = []
+        # 처음 변환한 영상은 백업에서, 나중에 make_draft_labels.py로 추가한 영상은 data/labels의 박스 초안에서 읽는다
+        # (data/labels의 seg 다각형 줄은 필드 수가 달라 아래에서 건너뛴다)
         src = backup / f"{img_path.stem}.txt"
+        if not src.exists():
+            src = labels / f"{img_path.stem}.txt"
         if src.exists():
             for line in src.read_text(encoding="utf-8").split("\n"):
                 p = line.split()

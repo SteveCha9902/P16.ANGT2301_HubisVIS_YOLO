@@ -33,13 +33,14 @@ python -m venv .venv
    - 타원을 비드 외곽에 맞추고(이동·축 길이·회전), spatter를 추가하고, 빠진 비드를 보완한다. 조작법은 파일 머리말에 있다.
    - 점선 사각형이 판정에 쓰는 회전 박스다. 선택한 타원의 W/H/각도는 아래 상태줄에 나온다.
    - 라벨 기준 (2026-11-01 결정)
-     - welding: 비드 하나당 타원 하나. 비드 끝에 붙은 덩어리는 비드 타원에 포함한다.
-     - spatter: 비드 경계 밖에 떨어져 있는 구형 금속 방울만 표시한다. 비드에 붙은 덩어리는 spatter로 표시하지 않는다.
+     - welding: 비드 하나당 타원 하나. 비드 외곽(경계)에 맞춘다.
+     - spatter (2026-11-01 갱신): 비드 옆이나 비드 이외의 영역(금속판 위)에 생긴 작은 원형 방울. 비드 끝에 맞닿은 둥근 방울도 비드와 구별되면 spatter로 표시한다. 긁힘·줄무늬·넓은 얼룩·판 가장자리는 표시하지 않는다.
    - 검수를 마친 영상은 `data/reviewed.txt`에 기록된다.
-   - **spatter 추가 라벨링(후속):** 비드 검수가 끝난 뒤 `python review_labels.py --all`로 다시 돌면서 비드 밖 방울만 표시한다.
-     `2`로 spatter 클래스를 고르고 방울을 **클릭**하면 지름 24 px 원이 생긴다. `[` / `]`로 크기, 드래그로 위치를 맞춘다.
-     비드 안을 클릭하면 비드가 선택될 뿐 spatter가 생기지 않는다. 중심이 비드 안에 있는 spatter는 상태줄에 경고가 나온다.
-     spatter 라벨이 생긴 뒤 다시 학습하면 서버가 spatter도 내고, HubisVIS `YOLOSpatterNG=1`로 판정에 쓸 수 있다.
+   - **spatter 라벨링:** `python make_spatter_candidates.py`로 후보(금속판 위 작은 어두운 원형 점, 비드 밖)를 만든 뒤
+     `python review_labels.py --spatter`로 After 영상을 돈다. 노란 점선 후보를 **클릭**하면 spatter로 확정, `Y`는 모두 확정,
+     확정하지 않은 후보는 저장되지 않는다. 후보에 없는 방울은 빈 곳 클릭(지름 24 px 원), `[` / `]`로 크기를 맞춘다.
+     진행 기록은 `data/spatter_reviewed.txt`. 중심이 비드 안에 있는 spatter는 상태줄에 경고가 나온다.
+     spatter 라벨로 다시 학습하면 서버가 spatter도 내고, HubisVIS `YOLOSpatterNG=1`로 판정에 쓸 수 있다.
 3. **학습:** `.venv\Scripts\python train.py --deploy`
    - `data/ellipses`로 `data/labels`(seg 다각형)를 다시 만들고, 시료(바코드) 단위로 train/val을 8:2로 나눈다.
    - 학습 후 ONNX로 export하고, 서버와 같은 `OnnxYoloDetector`로 검증셋을 평가해 `runs/<name>/server_eval.txt`에 남긴다.
