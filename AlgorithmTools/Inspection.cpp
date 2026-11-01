@@ -566,6 +566,40 @@ void CInspection::OverlayAlarmClear(int alarmCode)
 {
 	m_pOverlayManager->ClearData(alarmCode);
 }
+namespace
+{
+	// P16: YOLO 타원과 이를 감싸는 회전 박스(판정 W/H)를 그린다. OverlayManager에 회전 도형이 없어 선분으로 근사한다.
+	void AddYOLOEllipseOverlay(COverlayManager* pOverlay, long nStep, const YOLOBox& box)
+	{
+		if (pOverlay == nullptr || box.hasEllipse == FALSE)
+			return;
+
+		const double kPi = 3.14159265358979323846;
+		const double c = cos(box.eangle * kPi / 180.0);
+		const double s = sin(box.eangle * kPi / 180.0);
+		const double hw = box.ew / 2.0, hh = box.eh / 2.0;
+		// 타원 축 좌표 (a: ew 축, b: eh 축) → 영상 좌표
+		auto toImage = [&](double a, double b)
+		{
+			return CPoint((long)floor(box.ecx + a * c - b * s + 0.5), (long)floor(box.ecy + a * s + b * c + 0.5));
+		};
+
+		const CPoint corners[4] = { toImage(-hw, -hh), toImage(hw, -hh), toImage(hw, hh), toImage(-hw, hh) };
+		for (int i = 0; i < 4; i++)
+			pOverlay->AddLine(nStep, corners[i], corners[(i + 1) % 4]);
+
+		const int kSegments = 48;
+		CPoint prev = toImage(hw, 0.0);
+		for (int i = 1; i <= kSegments; i++)
+		{
+			const double t = 2.0 * kPi * i / kSegments;
+			CPoint cur = toImage(hw * cos(t), hh * sin(t));
+			pOverlay->AddLine(nStep, prev, cur);
+			prev = cur;
+		}
+	}
+}
+
 void CInspection::DebugOverlay(const long itemIndex, const long debugIndex)
 {
 	CString strTemp;
@@ -918,9 +952,14 @@ void CInspection::DebugOverlay(const long itemIndex, const long debugIndex)
 
 					auto result = m_vecResult[idx];
 
+					// YOLO 판정이면 판정에 쓴 타원·회전 박스도 함께 표시
+					const YOLOBox* pYOLOBox = (idx < (long)m_vecYOLOMatchBox.size()) ? &m_vecYOLOMatchBox[idx] : nullptr;
+
 					if (m_vecCriteriaResult[idx].nErr == INSP_ERR_OK)
 					{
 						m_pOverlayManager->AddRect(DEBUG_RESULT_OK, m_vecResult[idx].rtROI);
+						if (pYOLOBox != nullptr)
+							AddYOLOEllipseOverlay(m_pOverlayManager, DEBUG_RESULT_OK, *pYOLOBox);
 
 						if (m_nAlarm != ALARM_OK)
 							OverlayAlarm(idx, m_nAlarm, result);
@@ -929,6 +968,8 @@ void CInspection::DebugOverlay(const long itemIndex, const long debugIndex)
 					{
 						::g_Log.Log(_T("[Test] DETECT_BLOB2 NG Overlay"));
 						m_pOverlayManager->AddRect(DEBUG_RESULT_NG, m_vecResult[idx].rtROI);
+						if (pYOLOBox != nullptr)
+							AddYOLOEllipseOverlay(m_pOverlayManager, DEBUG_RESULT_NG, *pYOLOBox);
 
 						// sjpark 260309 ?뚮엺 硫붿떆吏 ??젣 ?붿껌
 						//auto pt = CPoint(500, 500);
@@ -1080,160 +1121,294 @@ void CInspection::CleanupSocket()
 	}
 }
 
+// P16 후검사 YOLO 서버 연동
+// 프로토콜(기존 서버 유지): 영상 경로 + "\n" 전송 → JSON 한 줄 + "\n" 수신.
+// 박스 좌표는 전체 영상 기준 [x1, y1, x2, y2].
+// 결과 벡터는 호출 시작 시 비워서, 실패해도 이전 시료의 박스가 판정에 쓰이지 않게 한다.
 BOOL CInspection::SocketYOLO_SingleCall(const CString& imagePath)
 {
-	// 1. ?뚯폆 ?앹꽦
-	SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (sock == INVALID_SOCKET) return FALSE;
-	DWORD dwSocketTimeoutMs = 3000;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&dwSocketTimeoutMs, sizeof(dwSocketTimeoutMs));
-	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&dwSocketTimeoutMs, sizeof(dwSocketTimeoutMs));
-
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(9999);
-	inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
-
-	if (connect(sock, (SOCKADDR*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-		closesocket(sock);
-		return FALSE;
-	}
-
-	// 2. ?대?吏 寃쎈줈 ?꾩넚 (newline ?ы븿)
-	std::string imgPathStr = CT2A(imagePath);
-	std::string msgWithNewline = imgPathStr + "\n";
-	int sent = send(sock, msgWithNewline.c_str(), (int)msgWithNewline.size(), 0);
-	// shutdown(sock, SD_SEND); // ?꾩넚 ?꾨즺 ???뚯폆 ?リ린! (?곗씠???꾩넚 ?꾨즺)
-	if (sent == SOCKET_ERROR) {
-		closesocket(sock);
-		return FALSE;
-	}
-
-	// 3. ?묐떟 ?곗씠???섏떊 (newline ?ы븿)
-	std::string jsonStr;
-	char buffer[1024];
-	int bytesReceived = 0;
-	while (true)
-	{
-		bytesReceived = recv(sock, buffer, sizeof(buffer) - 1, 0);
-		if (bytesReceived <= 0) break;
-		buffer[bytesReceived] = '\0';
-		jsonStr += buffer;
-		if (!jsonStr.empty() && jsonStr.back() == '\n') break;
-	}
-	closesocket(sock); // ?뚯폆 ?リ린
-
-	if (jsonStr.empty()) return FALSE;
-
-	// 4. ?곗씠???뚯떛 ??鍮?踰≫꽣 珥덇린??
 	m_vecYOLOResultBox.clear();
+	m_vecYOLOSpatterBox.clear();
 
-	// 5. '\n' ?쒓굅 (newline 臾몄옄媛 ?ы븿???곗씠?곗쓽 寃쎌슦 泥섎━)
-	size_t newlinePos = jsonStr.find('\n');
-	if (newlinePos != std::string::npos)
-		jsonStr = jsonStr.substr(0, newlinePos);
+	const size_t kMaxResponseBytes = 1024 * 1024; // 비정상 응답으로 버퍼가 계속 커지지 않도록 제한
+	const DWORD dwTimeoutMs = (DWORD)((::g_ConfigManager.m_nYOLOTimeoutMs > 100) ? ::g_ConfigManager.m_nYOLOTimeoutMs : 100);
 
-	// 6. CString 蹂??諛??뚯떛
-	CStringA ansiStr(jsonStr.c_str());
-	CString resultYOLO(ansiStr);
-	ParseYOLOResult(resultYOLO);
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+	{
+		::g_Log.Log(_T("[YOLO] WSAStartup Fail"));
+		return FALSE;
+	}
+
+	std::string jsonStr;
+	BOOL bReceived = FALSE;
+
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (sock == INVALID_SOCKET)
+	{
+		::g_Log.Log(_T("[YOLO] socket Fail (%d)"), WSAGetLastError());
+	}
+	else
+	{
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&dwTimeoutMs, sizeof(dwTimeoutMs));
+		setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&dwTimeoutMs, sizeof(dwTimeoutMs));
+
+		sockaddr_in serverAddr = {};
+		serverAddr.sin_family = AF_INET;
+		serverAddr.sin_port = htons((u_short)::g_ConfigManager.m_nYOLOServerPort);
+		CStringA strServerIP(::g_ConfigManager.m_strYOLOServerIP);
+
+		// connect는 SO_SNDTIMEO가 적용되지 않으므로 non-blocking + select로 timeout을 건다
+		BOOL bConnected = FALSE;
+		if (inet_pton(AF_INET, strServerIP, &serverAddr.sin_addr) != 1)
+		{
+			::g_Log.Log(_T("[YOLO] Invalid Server IP : %s"), (LPCTSTR)::g_ConfigManager.m_strYOLOServerIP);
+		}
+		else
+		{
+			u_long nonBlocking = 1;
+			ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+			if (connect(sock, (SOCKADDR*)&serverAddr, sizeof(serverAddr)) == 0)
+			{
+				bConnected = TRUE;
+			}
+			else if (WSAGetLastError() == WSAEWOULDBLOCK)
+			{
+				fd_set writeSet, exceptSet;
+				FD_ZERO(&writeSet);
+				FD_ZERO(&exceptSet);
+				FD_SET(sock, &writeSet);
+				FD_SET(sock, &exceptSet);
+				timeval tv = { (long)(dwTimeoutMs / 1000), (long)((dwTimeoutMs % 1000) * 1000) };
+				if (select(0, nullptr, &writeSet, &exceptSet, &tv) > 0 && FD_ISSET(sock, &writeSet))
+				{
+					bConnected = TRUE;
+				}
+			}
+
+			nonBlocking = 0;
+			ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+			if (bConnected == FALSE)
+			{
+				::g_Log.Log(_T("[YOLO] Connect Fail %s:%d"), (LPCTSTR)::g_ConfigManager.m_strYOLOServerIP, ::g_ConfigManager.m_nYOLOServerPort);
+			}
+		}
+
+		if (bConnected == TRUE)
+		{
+			// 영상 경로 전송 (기존 서버와 같은 ANSI 경로 + newline)
+			std::string msgWithNewline = std::string(CT2A(imagePath)) + "\n";
+			BOOL bSent = TRUE;
+			size_t sentTotal = 0;
+			while (sentTotal < msgWithNewline.size())
+			{
+				int sent = send(sock, msgWithNewline.c_str() + sentTotal, (int)(msgWithNewline.size() - sentTotal), 0);
+				if (sent == SOCKET_ERROR || sent == 0)
+				{
+					::g_Log.Log(_T("[YOLO] Send Fail (%d)"), WSAGetLastError());
+					bSent = FALSE;
+					break;
+				}
+				sentTotal += (size_t)sent;
+			}
+
+			// 응답 수신 (newline까지)
+			if (bSent == TRUE)
+			{
+				char buffer[1024];
+				while (true)
+				{
+					int bytesReceived = recv(sock, buffer, sizeof(buffer), 0);
+					if (bytesReceived <= 0)
+					{
+						if (bytesReceived < 0)
+							::g_Log.Log(_T("[YOLO] Receive Fail/Timeout (%d)"), WSAGetLastError());
+						break;
+					}
+					jsonStr.append(buffer, (size_t)bytesReceived);
+
+					size_t newlinePos = jsonStr.find('\n');
+					if (newlinePos != std::string::npos)
+					{
+						jsonStr.resize(newlinePos);
+						bReceived = TRUE;
+						break;
+					}
+					if (jsonStr.size() > kMaxResponseBytes)
+					{
+						::g_Log.Log(_T("[YOLO] Response too large (%u bytes)"), (unsigned int)jsonStr.size());
+						jsonStr.clear();
+						break;
+					}
+				}
+
+				// newline 없이 서버가 연결을 닫은 경우도 받은 데이터는 사용한다 (기존 동작 유지)
+				if (bReceived == FALSE && jsonStr.empty() == false)
+					bReceived = TRUE;
+			}
+		}
+
+		closesocket(sock);
+	}
+
+	WSACleanup();
+
+	if (bReceived == FALSE || jsonStr.empty())
+		return FALSE;
+
+	if (jsonStr.find("\"error\"") != std::string::npos)
+	{
+		::g_Log.Log(_T("[YOLO] Server Error : %s"), (LPCTSTR)CString(jsonStr.substr(0, 200).c_str()));
+		return FALSE;
+	}
+
+	ParseYOLOResult(CString(jsonStr.c_str()));
 
 	return TRUE;
 }
 
+BOOL CInspection::RequestYOLO(long itemIndex)
+{
+	m_vecYOLOResultBox.clear();
+	m_vecYOLOSpatterBox.clear();
+
+	// DoDetectBlob2와 같은 원본 영상 (itemIndex == IMAGE::ORIGINALxx)
+	if (itemIndex < (long)IMAGE::ORIGINAL11 || itemIndex > (long)IMAGE::ORIGINAL23)
+	{
+		::g_Log.Log(_T("[YOLO] Item %d : invalid image index"), itemIndex);
+		return FALSE;
+	}
+
+	BYTE* src = ::g_MemoryManager.GetByteImage(itemIndex);
+	if (src == nullptr || m_nImageWidth <= 0 || m_nImageHeight <= 0)
+	{
+		::g_Log.Log(_T("[YOLO] Item %d : empty image (%d x %d)"), itemIndex, m_nImageWidth, m_nImageHeight);
+		return FALSE;
+	}
+
+	CString strWorkPath = ::g_ConfigManager.m_strYOLOWorkPath;
+	strWorkPath.Trim();
+	if (strWorkPath.IsEmpty())
+	{
+		TCHAR szTempPath[MAX_PATH] = { 0 };
+		if (GetTempPath(MAX_PATH, szTempPath) == 0)
+		{
+			::g_Log.Log(_T("[YOLO] GetTempPath Fail"));
+			return FALSE;
+		}
+		strWorkPath.Format(_T("%sHubisVIS_YOLO"), szTempPath);
+	}
+	strWorkPath.TrimRight(_T("\\"));
+	::g_DataSaveManager.CreateDirectoryRecursive(strWorkPath);
+
+	// 검사 스레드·항목별 고정 파일명: 동시 검사 시 서로 덮어쓰지 않고, 매 시료 덮어써서 쌓이지 않는다
+	CString strImagePath;
+	strImagePath.Format(_T("%s\\yolo_t%d_item%d.bmp"), strWorkPath, m_nThreadIndex, itemIndex);
+	DeleteFile(strImagePath); // 이전 시료 파일이 남아 저장 실패를 놓치지 않도록 먼저 지운다
+
+	DWORD dwBeginTick = GetTickCount();
+	HUBSDK::ImageInterface::ImageSaveBMP(strImagePath, src, m_nImageWidth, m_nImageHeight, 8, CRect(0, 0, m_nImageWidth, m_nImageHeight), TRUE);
+	if (PathFileExists(strImagePath) == FALSE)
+	{
+		::g_Log.Log(_T("[YOLO] Item %d : image save fail %s"), itemIndex, (LPCTSTR)strImagePath);
+		return FALSE;
+	}
+	DWORD dwSaveElapsed = GetTickCount() - dwBeginTick;
+
+	BOOL bReturn = SocketYOLO_SingleCall(strImagePath);
+	DWORD dwTotalElapsed = GetTickCount() - dwBeginTick;
+
+	::g_Log.Log(_T("[YOLO] Item %d : %s welding:%d spatter:%d save:%lu ms total:%lu ms"), itemIndex, bReturn ? _T("OK") : _T("FAIL"),
+		(int)m_vecYOLOResultBox.size(), (int)m_vecYOLOSpatterBox.size(), (unsigned long)dwSaveElapsed, (unsigned long)dwTotalElapsed);
+
+	return bReturn;
+}
+
+namespace
+{
+	// "class" 키부터 다음 "class" 키 전까지의 한 항목에서 class, confidence, 첫 [x1, y1, x2, y2]와 선택 항목 ellipse를 읽는다.
+	BOOL ParseYOLOItem(const std::string& item, std::string& className, YOLOBox& box)
+	{
+		size_t pos = item.find(':');
+		if (pos == std::string::npos) return FALSE;
+		size_t start = item.find('"', pos);
+		if (start == std::string::npos) return FALSE;
+		size_t end = item.find('"', start + 1);
+		if (end == std::string::npos) return FALSE;
+		className = item.substr(start + 1, end - start - 1);
+
+		pos = item.find("\"confidence\"");
+		if (pos == std::string::npos) return FALSE;
+		pos = item.find(':', pos);
+		if (pos == std::string::npos) return FALSE;
+		box.confidence = static_cast<float>(atof(item.c_str() + pos + 1));
+
+		start = item.find('[');
+		if (start == std::string::npos) return FALSE;
+		end = item.find(']', start);
+		if (end == std::string::npos) return FALSE;
+
+		std::string coords = item.substr(start + 1, end - start - 1);
+		if (sscanf_s(coords.c_str(), "%f , %f , %f , %f", &box.x1, &box.y1, &box.x2, &box.y2) != 4) return FALSE;
+
+		// 선택 항목: box 뒤의 "ellipse": [cx, cy, w, h, angle]. 없거나 깨졌으면 박스만 쓴다.
+		box.hasEllipse = FALSE;
+		pos = item.find("\"ellipse\"", end);
+		if (pos != std::string::npos)
+		{
+			start = item.find('[', pos);
+			size_t ellipseEnd = (start == std::string::npos) ? std::string::npos : item.find(']', start);
+			if (ellipseEnd != std::string::npos)
+			{
+				std::string values = item.substr(start + 1, ellipseEnd - start - 1);
+				if (sscanf_s(values.c_str(), "%f , %f , %f , %f , %f", &box.ecx, &box.ecy, &box.ew, &box.eh, &box.eangle) == 5
+					&& box.ew > 0.f && box.eh > 0.f)
+					box.hasEllipse = TRUE;
+			}
+		}
+
+		return TRUE;
+	}
+}
 
 std::vector<YOLOBox> CInspection::ParseYOLOResult(const CString & jsonStr)
 {
-	CStringA ansiStr(jsonStr);  // CString??ANSI 臾몄옄?대줈 蹂??
+	CStringA ansiStr(jsonStr);
 	std::string input = ansiStr;
 
-	size_t pos = 0;
-	while ((pos = input.find("\"class\"")) != std::string::npos)
+	const std::string kClassKey = "\"class\"";
+	const float fMinConfidence = ::g_ConfigManager.m_fYOLOConfidence;
+	long nSkipped = 0;
+
+	size_t pos = input.find(kClassKey);
+	while (pos != std::string::npos)
 	{
+		size_t next = input.find(kClassKey, pos + kClassKey.size());
+		std::string item = (next == std::string::npos) ? input.substr(pos) : input.substr(pos, next - pos);
+		pos = next;
+
 		YOLOBox box;
-
-		// class
-		pos = input.find("\"class\"");
-		size_t start = input.find("\"", pos + 7) + 1;
-		size_t end = input.find("\"", start);
-		box.class_name = CString(input.substr(start, end - start).c_str());
-
-		if (box.class_name == "welding")
+		std::string className;
+		if (ParseYOLOItem(item.substr(kClassKey.size()), className, box) == FALSE)
 		{
-			// confidence
-			pos = input.find("\"confidence\"", end);
-			start = input.find(":", pos) + 1;
-			end = input.find(",", start);
-			box.confidence = static_cast<float>(atof(input.substr(start, end - start).c_str()));
-
-			// box [x1, y1, x2, y2]
-			pos = input.find("[", end) + 1;
-			end = input.find(",", pos);
-			box.x1 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			pos = end + 1;
-			end = input.find(",", pos);
-			box.y1 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			pos = end + 1;
-			end = input.find(",", pos);
-			box.x2 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			pos = end + 1;
-			end = input.find("]", pos);
-			box.y2 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			// 250627 sjpark ?좊ː??0.85 ?댁긽??寃쎌슦 寃곌낵???ы븿
-			if (box.confidence >= 0.85)
-			{
-				m_vecYOLOResultBox.push_back(box);
-			}
+			nSkipped++;
+			continue;
 		}
-		if (box.class_name == "spatter")
-		{
-			// confidence
-			pos = input.find("\"confidence\"", end);
-			start = input.find(":", pos) + 1;
-			end = input.find(",", start);
-			box.confidence = static_cast<float>(atof(input.substr(start, end - start).c_str()));
 
-			// box [x1, y1, x2, y2]
-			pos = input.find("[", end) + 1;
-			end = input.find(",", pos);
-			box.x1 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
+		if (box.confidence < fMinConfidence)
+			continue;
 
-			pos = end + 1;
-			end = input.find(",", pos);
-			box.y1 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			pos = end + 1;
-			end = input.find(",", pos);
-			box.x2 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			pos = end + 1;
-			end = input.find("]", pos);
-			box.y2 = static_cast<float>(atof(input.substr(pos, end - pos).c_str()));
-
-			// 250627 sjpark ?좊ː??0.85 ?댁긽??寃쎌슦 寃곌낵???ы븿
-			if (box.confidence >= 0.85)
-			{
-				// TODO : YOLOSpatterBox 寃곌낵 諛뺤뒪 珥덇린??諛?寃곌낵 踰≫꽣??異붽?
-				m_vecYOLOSpatterBox.push_back(box);
-			}
-		}
-		
-
-		// ?곗씠???앷퉴吏 諛섎났
-		input = input.substr(end);
+		box.class_name = CString(className.c_str());
+		if (className == "welding")
+			m_vecYOLOResultBox.push_back(box);
+		else if (className == "spatter")
+			m_vecYOLOSpatterBox.push_back(box);
 	}
 
-	//for (const auto& boxInstance : m_vecYOLOResultBox)
-	//{
-	//	CString debug;
-	//	debug.Format(_T("Class: %s, Conf: %.2f, Box: %.1f, %.1f, %.1f, %.1f"),
-	//		boxInstance.class_name, boxInstance.confidence, boxInstance.x1, boxInstance.y1, boxInstance.x2, boxInstance.y2);
-	//	AfxMessageBox(debug);
-	//}
+	if (nSkipped > 0)
+		::g_Log.Log(_T("[YOLO] Parse : %d malformed item(s) skipped"), nSkipped);
 
 	return m_vecYOLOResultBox;
 }

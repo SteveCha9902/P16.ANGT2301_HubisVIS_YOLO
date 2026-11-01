@@ -12,6 +12,7 @@ BOOL CInspection::DoCriteria(long itemIndex, BOOL &bResult)
 	auto algoSequence = ::g_RecipeManager.m_vecsInspItem[itemIndex].algoSequence;
 
 	m_vecCriteriaResult.clear();
+	m_vecYOLOMatchBox.clear(); // 이전 항목의 YOLO 표시가 남지 않도록 (SetCriteriaYOLO에서 다시 채움)
 
 	switch(algoSequence)
 	{
@@ -286,11 +287,46 @@ BOOL CInspection::SetCriteriaBlob2(long itemIndex, BOOL &bResult)
 	return TRUE;
 }
 
+namespace
+{
+	// 두 영역의 겹침 비율 = 교집합 면적 / 작은 쪽 면적 (0 ~ 1)
+	float GetOverlapRatio(CRect a, CRect b)
+	{
+		a.NormalizeRect();
+		b.NormalizeRect();
+
+		CRect inter;
+		if (inter.IntersectRect(&a, &b) == FALSE)
+			return 0.f;
+
+		double areaA = (double)a.Width() * a.Height();
+		double areaB = (double)b.Width() * b.Height();
+		double smaller = (areaA < areaB) ? areaA : areaB;
+		if (smaller <= 0.)
+			return 0.f;
+
+		return (float)((double)inter.Width() * inter.Height() / smaller);
+	}
+}
+
 // 250627 sjpark  SetCriteriaBlob2 벤치마킹
+// P16: 검사 시점에 YOLO 서버를 호출하고, Blob2 측정점마다 위치가 겹치는 welding 박스를 찾아 그 크기로 판정한다.
+//      서버가 타원을 보내면(segmentation 모델) 타원을 감싸는 회전 박스의 가로·세로로 판정한다.
+//      (기존: 호출 없이 박스를 인덱스 순서로만 대응 → 박스 부족 시 범위 초과, 위치 불일치)
 BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 {
 	auto criteria = ::g_RecipeManager.m_vecsInspItem[itemIndex].sCriteria;
 	auto camIndex = ::g_RecipeManager.m_vecsInspItem[itemIndex].visionIndex;
+
+	BOOL bYOLOOK = RequestYOLO(itemIndex);
+	if (bYOLOOK == FALSE && ::g_ConfigManager.m_bYOLOFailFallback == TRUE)
+	{
+		::g_Log.Log(_T("[YOLO] Item %d : YOLO 실패 - 룰베이스(Blob2) 판정으로 대체"), itemIndex);
+		return SetCriteriaBlob2(itemIndex, bResult);
+	}
+
+	std::vector<BOOL> vecBoxUsed(m_vecYOLOResultBox.size(), FALSE);
+	m_vecYOLOMatchBox.assign(m_vecResult.size(), YOLOBox());
 
 	for (long idx = 0; idx < (long)m_vecResult.size(); idx++)
 	{
@@ -298,34 +334,98 @@ BOOL CInspection::SetCriteriaYOLO(long itemIndex, BOOL &bResult)
 		value = criteria;
 		long nAlarm = ALARM_OK; // 측정점별 알람 (전역 공유 시 이전 NG 알람이 OK 항목에 남는 문제 수정)
 
-		auto result = m_vecResult[idx];
-		auto boundingBoxRect = m_vecYOLOResultBox[idx];
+		auto &result = m_vecResult[idx];
 
-		float yoloW = abs(boundingBoxRect.x2 - boundingBoxRect.x1);
-		float yoloH = abs(boundingBoxRect.y2 - boundingBoxRect.y1);
-
-		result.fWeldWidth = yoloW * ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
-		result.fWeldHeight = yoloH * ::g_CalibrationManager.m_fPixelResolutionY[camIndex];
-
-		// Blob 크기로 양불판정
-		if ((result.fWeldWidth > criteria.fWeldWidthMin && result.fWeldWidth < criteria.fWeldWidthMax) &&
-			(result.fWeldHeight > criteria.fWeldHeightMin && result.fWeldHeight < criteria.fWeldHeightMax))
+		// 측정점 영역과 가장 많이 겹치는 미사용 welding 박스
+		long nMatchBox = -1;
+		float fBestRatio = 0.f;
+		for (long box = 0; box < (long)m_vecYOLOResultBox.size(); box++)
 		{
-			value.nErr = INSP_ERR_OK;
-			m_sInspBlobResult.bResult = TRUE;
+			if (vecBoxUsed[box] == TRUE)
+				continue;
+
+			float fRatio = GetOverlapRatio(result.rtROI, m_vecYOLOResultBox[box].GetRect());
+			if (fRatio >= ::g_ConfigManager.m_fYOLOMatchRatio && fRatio > fBestRatio)
+			{
+				fBestRatio = fRatio;
+				nMatchBox = box;
+			}
 		}
-		else
+
+		if (nMatchBox < 0)
 		{
 			value.nErr = INSP_ERR;
 			m_sInspBlobResult.bResult = FALSE;
-			::g_Log.Log(_T("Inspe specErr : Blob2 "));
+			::g_Log.Log(_T("Inspe specErr : YOLO Item %d Point %d - %s"), itemIndex, idx, bYOLOOK ? _T("welding 박스 없음") : _T("YOLO 실패"));
 			nAlarm = ALARM_CRI_BLOB2;
+		}
+		else
+		{
+			vecBoxUsed[nMatchBox] = TRUE;
+			const auto &boundingBox = m_vecYOLOResultBox[nMatchBox];
+			m_vecYOLOMatchBox[idx] = boundingBox;
+			const double resX = ::g_CalibrationManager.m_fPixelResolutionX[camIndex];
+			const double resY = ::g_CalibrationManager.m_fPixelResolutionY[camIndex];
+
+			// 결과 화면·CSV에도 판정에 쓴 YOLO 크기가 나가도록 측정 결과에 반영
+			if (boundingBox.hasEllipse == TRUE)
+			{
+				// 타원을 감싸는 회전 박스의 변 길이. 기울어진 축은 X/Y 해상도를 축 방향 성분으로 합성해 mm로 바꾼다.
+				// ew 축 방향 (cos, sin), eh 축 방향 (-sin, cos)
+				const double kDegToRad = 3.14159265358979323846 / 180.0;
+				const double c = cos(boundingBox.eangle * kDegToRad);
+				const double s = sin(boundingBox.eangle * kDegToRad);
+				result.fWeldWidth = (float)(boundingBox.ew * sqrt((resX * c) * (resX * c) + (resY * s) * (resY * s)));
+				result.fWeldHeight = (float)(boundingBox.eh * sqrt((resX * s) * (resX * s) + (resY * c) * (resY * c)));
+			}
+			else
+			{
+				result.fWeldWidth = (float)(fabs(boundingBox.x2 - boundingBox.x1) * resX);
+				result.fWeldHeight = (float)(fabs(boundingBox.y2 - boundingBox.y1) * resY);
+			}
+
+			// YOLO 박스 크기로 양불판정
+			if ((result.fWeldWidth > criteria.fWeldWidthMin && result.fWeldWidth < criteria.fWeldWidthMax) &&
+				(result.fWeldHeight > criteria.fWeldHeightMin && result.fWeldHeight < criteria.fWeldHeightMax))
+			{
+				value.nErr = INSP_ERR_OK;
+				m_sInspBlobResult.bResult = TRUE;
+			}
+			else
+			{
+				value.nErr = INSP_ERR;
+				m_sInspBlobResult.bResult = FALSE;
+				::g_Log.Log(_T("Inspe specErr : YOLO Item %d Point %d W:%.3f H:%.3f %s angle:%.1f conf:%.2f"), itemIndex, idx, result.fWeldWidth, result.fWeldHeight,
+					boundingBox.hasEllipse ? _T("ellipse") : _T("box"), boundingBox.hasEllipse ? boundingBox.eangle : 0.f, boundingBox.confidence);
+				nAlarm = ALARM_CRI_BLOB2;
+			}
+		}
+
+		// 옵션: 측정점 영역에 spatter가 있으면 NG
+		if (value.nErr == INSP_ERR_OK && ::g_ConfigManager.m_bYOLOSpatterNG == TRUE)
+		{
+			for (const auto &spatter : m_vecYOLOSpatterBox)
+			{
+				if (GetOverlapRatio(result.rtROI, spatter.GetRect()) > 0.f)
+				{
+					value.nErr = INSP_ERR;
+					m_sInspBlobResult.bResult = FALSE;
+					::g_Log.Log(_T("Inspe specErr : YOLO Item %d Point %d spatter conf:%.2f"), itemIndex, idx, spatter.confidence);
+					nAlarm = ALARM_CRI_BLOB2;
+					break;
+				}
+			}
 		}
 
 		m_vecCriteriaResult.push_back(value);
 		if (nAlarm != ALARM_OK)
 			OverlayAlarm(idx, nAlarm, result);
 	}
+
+	// 결과 글자(Width/Height mm)는 DoResult에서 Blob2 크기로 먼저 그려졌으므로, 판정에 쓴 YOLO 크기로 다시 그린다.
+	// (DEBUG_RESULT_RESULT는 지우고 m_vecResult로 다시 그린다. 같이 그려지는 알람 글자는 같은 위치에 겹쳐 그려진다)
+	if (m_vecResult.size() != 0)
+		DebugOverlay(itemIndex, DEBUG_RESULT_RESULT);
 
 	if (m_vecResult.size() == 0)  // sjpark
 	{

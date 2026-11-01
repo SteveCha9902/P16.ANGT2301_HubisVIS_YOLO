@@ -58,6 +58,16 @@ void CConfigManager::InitParameters()
 
 	m_nCustomer = (long)CUSTOMER::BORGWARNER;
 
+	m_bUseAfterInspectionDL = FALSE;
+	m_strYOLOServerIP = _T("127.0.0.1");
+	m_nYOLOServerPort = 9999;
+	m_nYOLOTimeoutMs = 3000;
+	m_fYOLOConfidence = 0.85f;
+	m_fYOLOMatchRatio = 0.3f;
+	m_bYOLOFailFallback = TRUE;
+	m_bYOLOSpatterNG = FALSE;
+	m_strYOLOWorkPath = _T("");
+
 	for(long idx = 0; idx < CAMERA_MAX_COUNT; idx++)
 	{
 		m_nImageWidth[idx] = 2448;
@@ -117,6 +127,14 @@ BOOL CConfigManager::LoadParameters(const CString strPath)
 	CString strTemp;
 
 	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL, m_bUseAfterInspectionDL); // 250627 PSJ 후검사 YOLO DeepLearning 사용 여부
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOServerIP"), &m_strYOLOServerIP, m_strYOLOServerIP);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOServerPort"), &m_nYOLOServerPort, m_nYOLOServerPort);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOTimeoutMs"), &m_nYOLOTimeoutMs, m_nYOLOTimeoutMs);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOConfidence"), &m_fYOLOConfidence, m_fYOLOConfidence);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOMatchRatio"), &m_fYOLOMatchRatio, m_fYOLOMatchRatio);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOFailFallback"), &m_bYOLOFailFallback, m_bYOLOFailFallback);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOSpatterNG"), &m_bYOLOSpatterNG, m_bYOLOSpatterNG);
+	HUBSDK::IniReadWriter::Read(strPath, _T("DeepLearning"), _T("YOLOWorkPath"), &m_strYOLOWorkPath, m_strYOLOWorkPath);
 	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass, m_bManualAutoPass); // Auto pass 기능 config에 등록 - PSJ 250228 
 	HUBSDK::IniReadWriter::Read(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass, m_bPLCAutoPass); // Auto pass 기능 config에 등록 - PSJ 250228 
 	HUBSDK::IniReadWriter::Read(strPath, _T("Customer"), _T("Customer"), &m_nCustomer, m_nCustomer);
@@ -180,6 +198,14 @@ BOOL CConfigManager::SaveParameters(const CString strPath)
 	CString strTemp;
 	
 	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("AfterInspectionDL"), &m_bUseAfterInspectionDL); // 250627 PSJ 후검사 YOLO DeepLearning 사용 여부
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOServerIP"), &m_strYOLOServerIP);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOServerPort"), &m_nYOLOServerPort);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOTimeoutMs"), &m_nYOLOTimeoutMs);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOConfidence"), &m_fYOLOConfidence);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOMatchRatio"), &m_fYOLOMatchRatio);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOFailFallback"), &m_bYOLOFailFallback);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOSpatterNG"), &m_bYOLOSpatterNG);
+	HUBSDK::IniReadWriter::Write(strPath, _T("DeepLearning"), _T("YOLOWorkPath"), &m_strYOLOWorkPath);
 	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("ManualAutoPass"), &m_bManualAutoPass); // Auto pass 기능 config에 등록 - PSJ 250228 
 	HUBSDK::IniReadWriter::Write(strPath, _T("AutoPass"), _T("PLCAutoPass"), &m_bPLCAutoPass); // Auto pass 기능 config에 등록 - PSJ 250228 
 	HUBSDK::IniReadWriter::Write(strPath, _T("Customer"), _T("Customer"), &m_nCustomer);

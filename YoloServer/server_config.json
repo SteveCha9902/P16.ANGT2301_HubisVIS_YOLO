@@ -1,0 +1,20 @@
+{
+  "host": "127.0.0.1",
+  "port": 9999,
+  "client_timeout_s": 10,
+  "log_dir": "logs",
+
+  "backend": "onnx",
+
+  "model_path": "models/weld.onnx",
+  "class_names": ["welding", "spatter"],
+  "image_size": 1024,
+  "conf_threshold": 0.25,
+  "iou_threshold": 0.45,
+  "device": "cpu",
+
+  "mock_boxes": [
+    {"class": "welding", "confidence": 0.95, "box": [400, 1060, 720, 1240]},
+    {"class": "spatter", "confidence": 0.90, "box": [800, 900, 830, 930]}
+  ]
+}

@@ -1,0 +1,8 @@
+.venv/
+data/
+runs/
+*.pt
+*.onnx
+__pycache__/
+install_result.txt
+runs_*.log

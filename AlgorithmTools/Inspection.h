@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define INSP_DATA_COUNT 10
 
@@ -8,11 +8,17 @@
 #define ALGORITHM_TOOLS_API	__declspec(dllimport)
 #endif
 
-// 250619 sjpark YOLO Bound box ���� ����ü ����
+// 250619 sjpark YOLO Bound box 정보 구조체 선언
 struct YOLOBox {
 	CString class_name;
 	float confidence;
 	float x1, y1, x2, y2;
+
+	// P16: segmentation 모델이면 서버가 박스 뒤에 타원 [cx, cy, w, h, angle]을 보낸다 (픽셀, 각도는 도).
+	// ew는 가로축에 가까운 축의 길이, eh는 그 수직 축의 길이, eangle은 ew 축의 기울기(-45 ~ 45).
+	// 타원이 없으면(검출 모델·mock) hasEllipse가 FALSE이고 판정은 박스 크기를 쓴다.
+	BOOL hasEllipse = FALSE;
+	float ecx = 0.f, ecy = 0.f, ew = 0.f, eh = 0.f, eangle = 0.f;
 
 	CRect GetRect() const
 	{
@@ -38,7 +44,7 @@ public:
 	CAlgorithm* m_pAlgorithm;
 	COverlayManager* m_pOverlayManager;
 
-	// Image ���� ���� - SHK 2023.12.27
+	// Image 정보 설정 - SHK 2023.12.27
 	void SetImageInfo(const long imageWidth, const long imageHeight, const long threadIndex);
 
 	long m_nImageWidth;
@@ -60,14 +66,14 @@ public:
 	void DebugOverlayClear(const long debugIndex);
 	void DebugOverlayAllClear();
 
-	// ROI ���� - SHK 2023.12.27
+	// ROI 진행 - SHK 2023.12.27
 	BOOL DoSetROI(long itemIndex);
 	
-	// Threshold ���� - SHK 2023.12.27
+	// Threshold 진행 - SHK 2023.12.27
 	BOOL DoThresholdImage(long itemIndex);
 	BOOL DoThresholdImage2(long itemIndex);
 
-	// Blob ���� - SHK 2023.12.27
+	// Blob 진행 - SHK 2023.12.27
 	std::vector<BlobInfo> m_vecBlobInfoList;
 	long m_nBlobTotalCount;
 	BOOL DoDetectBlob(long itemIndex);
@@ -83,7 +89,7 @@ public:
 	std::vector<CRect> m_vecrtIgnoreROI;
 	std::vector<CPoint> m_vecptStart;
 	std::vector<CPoint> m_vecptEnd;
-	std::vector<float> m_vecnTopBusbarHeight; // PSJ  long -> float���� ����
+	std::vector<float> m_vecnTopBusbarHeight; // PSJ  long -> float으로 변경
 
 	std::vector<SInspEdgeResult> m_vecsEdgeResult;
 
@@ -121,16 +127,18 @@ public:
 	BOOL m_lTotalResult;
 	int m_bReInspection; // PSJ
 	
-	// 250619 sjpark YOLO Socket ��Ʈ �߰� (Main -> Inspection �˰����� ������ �̵�)
+	// 250619 sjpark YOLO Socket 파트 추가 (Main -> Inspection 알고리즘 단으로 이동)
 	SOCKET m_sock = INVALID_SOCKET;
 	bool m_connected = FALSE;
 
-	bool InitSocketClient();// ����� ����
-	void CleanupSocket(); // ����� ����
+	bool InitSocketClient();// 사라질 예정
+	void CleanupSocket(); // 사라질 예정
 	std::vector<YOLOBox> ParseYOLOResult(const CString & jsonStr);
 	std::vector<YOLOBox> m_vecYOLOResultBox;
 	std::vector<YOLOBox> m_vecYOLOSpatterBox; // 250630 sjpark YOLO Spatter Box
+	std::vector<YOLOBox> m_vecYOLOMatchBox; // P16: m_vecResult 측정점별로 판정에 쓴 welding 박스 (매칭 없으면 기본값). 결과 화면 타원·회전 박스 표시용
 	BOOL SocketYOLO_SingleCall(const CString& imagePath);
+	BOOL RequestYOLO(long itemIndex); // 현재 검사 영상을 임시 BMP로 저장 후 YOLO 서버 호출 (결과: m_vecYOLOResultBox / m_vecYOLOSpatterBox)
 	BOOL SetCriteriaYOLO(long itemIndex, BOOL &bResult);
 	CString m_currentImageName;
 };
