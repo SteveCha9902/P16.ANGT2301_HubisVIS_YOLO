@@ -29,6 +29,47 @@ static char THIS_FILE[] = __FILE__;
 // 시퀀스 레시피 전환, 레시피 열기/저장 대화상자, 기본 레시피가 모두 이 폴더를 사용한다.
 static const LPCTSTR RECIPE_FOLDER = _T("D:\\HubisVIS\\Recipe");
 
+// 종료 보장: 종료 확인 후 스레드 정리·카메라/DLL 해제 중 어디서 멈춰도 이 시간이 지나면 프로세스를 강제로 끝낸다
+#ifndef EXIT_WATCHDOG_TIMEOUT_MS
+#define EXIT_WATCHDOG_TIMEOUT_MS 10000
+#endif
+
+static DWORD WINAPI ExitWatchdogProc(LPVOID pParam)
+{
+	CString *pLogPath = (CString*)pParam;
+
+	::Sleep(EXIT_WATCHDOG_TIMEOUT_MS);
+
+	// 로그 스레드가 멈춰 있을 수 있으므로 파일에 직접 남긴다
+	SYSTEMTIME st;
+	::GetLocalTime(&st);
+	CStringA strLine;
+	strLine.Format("[%04d-%02d-%02d %02d:%02d:%02d.%03d] Exit not finished within %d ms - TerminateProcess\r\n",
+		st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds, EXIT_WATCHDOG_TIMEOUT_MS);
+	HANDLE hFile = ::CreateFile(*pLogPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(hFile != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwWritten = 0;
+		::WriteFile(hFile, (LPCSTR)strLine, (DWORD)strLine.GetLength(), &dwWritten, NULL);
+		::CloseHandle(hFile);
+	}
+
+	::TerminateProcess(::GetCurrentProcess(), 1);
+	return 0;
+}
+
+static void StartExitWatchdog()
+{
+	static CString s_strLogPath;
+	s_strLogPath.Format(_T("%s\\Log\\ExitWatchdog.txt"), ::g_ConfigManager.m_strCurPath);
+
+	HANDLE hThread = ::CreateThread(NULL, 0, ExitWatchdogProc, &s_strLogPath, 0, NULL);
+	if(hThread != NULL)
+	{
+		::CloseHandle(hThread);
+	}
+}
+
 // CDlgVisionMain 대화 상자
 
 IMPLEMENT_DYNAMIC(CDlgVisionMain, CDialogEx)
@@ -409,6 +450,8 @@ void CDlgVisionMain::OnClose()
 
 	if(ret == IDYES)
 	{
+		::g_Log.Log(_T("Program Exit Requested - forced exit after %d ms if not finished"), EXIT_WATCHDOG_TIMEOUT_MS);
+		StartExitWatchdog();
 
 		if(::g_ConfigManager.m_bUseLaserTCPIP == TRUE)
 		{

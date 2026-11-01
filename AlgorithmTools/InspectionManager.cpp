@@ -384,7 +384,8 @@ void CInspectionManager::RunInsp(const long threadIndex)
 		}
 
 		
-		::g_DataSaveManager.StartDataSave(DATA_SAVE::RESULT_IMAGE, barcode, camIndex, divIndex, scanTime, nResult);
+		// 결과 이미지: 이 검사 쓰레드의 결과 오버레이를 넘긴다 (Setup 화면 객체 m_pInspection 아님)
+		::g_DataSaveManager.StartDataSave(DATA_SAVE::RESULT_IMAGE, barcode, camIndex, divIndex, scanTime, nResult, m_vecpInspection[threadIndex]->m_pOverlayManager);
 
 		inspStep = INSP_SEQUENCE::SEQUENCE_DONE;
 	}
@@ -402,6 +403,20 @@ void CInspectionManager::RunInsp(const long threadIndex)
 	case INSP_SEQUENCE::ERROR_STEP:
 	{
 		::g_Log.Log(_T("Insp. Thread [%d] : INSP_SEQUENCE::ERROR_STEP"), threadIndex);
+
+		// PLCAutoPass=1: 검사 실패도 OK(1)로 결과 완료 처리한다.
+		// 완료로 세지 않으면 PLC 스레드가 결과 대기 초과로 ALARM을 켜고, PLC는 ALARM 후 프로그램 재시작이 필요하다.
+		if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+		{
+			if(::g_ConfigManager.m_nCustomer == (long)CUSTOMER::BORGWARNER)
+			{
+				auto &plcData = ::g_PLCManager.m_sPLC.vecsVision2PLCData;
+				BOOL bRet = ::g_PLCSocketManager.m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);
+				::g_Log.Log(_T("Insp. Thread [%d] : ERROR_STEP - Inspection(cam: %d, div: %d) Fail -> InspRet 1 ret:%d [Applying AutoPass]"), threadIndex, camIndex, divIndex, bRet);
+			}
+
+			InterlockedIncrement(&g_lPlcResultCommitCount);
+		}
 
 		inspDone = FALSE;
 		inspRunning = FALSE;

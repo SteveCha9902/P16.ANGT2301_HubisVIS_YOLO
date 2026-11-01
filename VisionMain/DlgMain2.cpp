@@ -200,6 +200,23 @@ BOOL CDlgMain2::OnInitDialog()
 
 				SetCamConnectIcon(TRUE, idx);
 			}
+			else if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+			{
+				// PLCAutoPass=1: 카메라가 없어도 초기화를 계속하고, 검사는 Master 이미지(ScanManager)로 대체한다
+				::g_Log.Log(_T("[CAMERA_DIAG][WARN] Camera%d Open Failed - continue with Master image [Applying AutoPass]"), idx + 1);
+
+				m_nImageWidth [idx*3+0] = ::g_ConfigManager.m_nImageWidth[idx];
+				m_nImageHeight[idx*3+0] = ::g_ConfigManager.m_nImageHeight[idx];
+				m_nImageSize  [idx*3+0] = m_nImageWidth[idx] * m_nImageHeight[idx];
+				m_nImageWidth [idx*3+1] = ::g_ConfigManager.m_nImageWidth[idx];
+				m_nImageHeight[idx*3+1] = ::g_ConfigManager.m_nImageHeight[idx];
+				m_nImageSize  [idx*3+1] = m_nImageWidth[idx] * m_nImageHeight[idx];
+				m_nImageWidth [idx*3+2] = ::g_ConfigManager.m_nImageWidth[idx];
+				m_nImageHeight[idx*3+2] = ::g_ConfigManager.m_nImageHeight[idx];
+				m_nImageSize  [idx*3+2] = m_nImageWidth[idx] * m_nImageHeight[idx];
+
+				SetCamConnectIcon(FALSE, idx);
+			}
 			else
 			{
 				strTemp.Format(_T("Camera%d Open Failed..."), idx + 1);
@@ -258,14 +275,21 @@ BOOL CDlgMain2::OnInitDialog()
 
 		m_bConnectSerial = ::g_CtrlSerial.Open(comPort, baudRate, byteSize, stopBits, parity);
 
-		if(m_bConnectSerial == FALSE) // 연결 실패...
+		if(m_bConnectSerial == FALSE && ::g_ConfigManager.m_bPLCAutoPass != FALSE)
+		{
+			// PLCAutoPass=1: 조명이 없어도 초기화를 계속한다 (검사는 Master 이미지로 대체)
+			::g_Log.Log(_T("[CAMERA_DIAG][WARN] Serial Connect Failed - continue with Master image [Applying AutoPass]"));
+		}
+		else if(m_bConnectSerial == FALSE) // 연결 실패...
 		{
 			::AfxMessageBox(_T("Serial Connect Failed..."));
 
 			return FALSE;
 		}
-
-		SetIllumConnectIcon(TRUE);
+		else
+		{
+			SetIllumConnectIcon(TRUE);
+		}
 	}
 	
 	SetUser(::g_UserManager.m_nPreLoginUserIndex);

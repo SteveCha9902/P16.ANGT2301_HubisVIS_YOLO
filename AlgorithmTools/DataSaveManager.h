@@ -1,7 +1,10 @@
 ﻿#pragma once
 
 #include <deque>
+#include <memory>
 #include <vector>
+
+class COverlayManager;
 
 #ifdef ALGORITHM_TOOLS_EXPORT
 #define ALGORITHM_TOOLS_API	__declspec(dllexport)
@@ -48,7 +51,8 @@ public:
 		long imageHeight;
 		long imageSize;
 		BOOL manualInspection;
-		std::vector<BYTE> rawImage;
+		std::vector<BYTE> rawImage;		// RAW: 원본 영상, RESULT_IMAGE: 결과 이미지 바탕 영상 (요청 시점 복사본)
+		std::shared_ptr<COverlayManager> overlay;	// RESULT_IMAGE: 요청 시점 검사 결과 오버레이 복사본
 
 		SDataSaveJob()
 			: method(DATA_SAVE::RAW_IMAGE)
@@ -70,7 +74,7 @@ public:
 	HANDLE m_hSignal_QueueSpace;
 	CString m_strCurrentCycleKey;
 
-	void StartDataSave(DATA_SAVE method, CString barcode, const long camIdx, const long divIdx, const CString time, const int result = -1);
+	void StartDataSave(DATA_SAVE method, CString barcode, const long camIdx, const long divIdx, const CString time, const int result = -1, const COverlayManager* pOverlay = nullptr);
 	BOOL PopDataSaveJob(SDataSaveJob& job);
 	void ApplyDataSaveJob(const SDataSaveJob& job);
 	BOOL WaitDataSaveQueueSpace(const DWORD dwImageBytes);
@@ -78,10 +82,11 @@ public:
 	void SetDataSaveProcessing(const BOOL bProcessing);
 	BOOL IsQueueIdle();
 	CString GetRawImageSaveFolder(const SDataSaveJob& job);
+	CString GetSampleSaveFolder(const SDataSaveJob& job, const CString savePath);
 	void CreateDirectoryRecursive(const CString strPath);
 	void RawImageSaveJob(const SDataSaveJob& job);
 	void ResultDataSave(const BOOL bManualInspection = FALSE); // csv형식
-	void ResultImageSave(const BOOL bManualInspection = FALSE);
+	void ResultImageSave(const SDataSaveJob& job);
 	void RawImageSave(const BOOL bManualInspection = FALSE);
 	void RawImageSave2(const BOOL bManualInspection = FALSE);
 	CString CreateSaveFolder(CString strPath);

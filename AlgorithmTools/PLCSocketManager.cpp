@@ -32,6 +32,7 @@ static BOOL s_bMoveRespWarned = FALSE;	// 현재 Move 요청에 대해 미응답
 static BOOL s_bMoveAlarmOn = FALSE;		// Move 미응답으로 ALARM을 켰는지
 static BOOL s_bInitRespOn = FALSE;		// RESP_Initialize ON 유지 중 (REQ_Initialize OFF 확인 후 OFF)
 static BOOL s_bResultAlarmOn = FALSE;	// 결과 기록 대기 초과로 ALARM을 켰는지 (다음 Start에서 해제)
+static BOOL s_bMoveAlarmSkipped = FALSE;	// PLCAutoPass=1에서 Move 미응답 ALARM을 생략했다는 로그를 남겼는지
 
 // 5단계 결과 완료 장벽: 검사 스레드(InspectionManager.cpp)가 SEND_DATA를 마칠 때마다 증가시킨다.
 volatile LONG g_lPlcResultCommitCount = 0;
@@ -247,6 +248,29 @@ void CPLCSocketManager::ThreadClient()
 	}
 }
 
+// PLCAutoPass=1 전용: 스캔·검사를 못 한 사이클도 OK(1)로 보고 REQ_Insp_Move를 켜서 PLC 시퀀스를 진행시킨다.
+// (ALARM은 설비 정지 후 프로그램 재시작이 필요하므로 AutoPass 운영에서는 쓰지 않는다)
+static void AutoPassRequestMove(CPLCSocketManager *pManager, LPCTSTR reason)
+{
+	auto &plcData = ::g_PLCManager.m_sPLC.vecsVision2PLCData;
+
+	BOOL bRetWrite = pManager->m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);
+	BOOL bMoveWriteRet = pManager->m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::ON);
+	if(bMoveWriteRet != FALSE)
+	{
+		pManager->m_bMoveReqOn = TRUE;
+		pManager->m_dwMoveReqOnTick = GetTickCount();
+		s_bMoveRespWarned = FALSE;
+		s_bMoveAlarmSkipped = FALSE;
+	}
+	else
+	{
+		pManager->m_bMoveReqOn = FALSE;
+		pManager->m_dwMoveReqOnTick = 0;
+	}
+	::g_Log.Log(_T("[PLC_MOVE_DIAG][WARN] Seq:%d %s - Write 30210 InspRet 1 ret:%d, 30201.4 PLC_DO_REQ_Insp_Move ON ret:%d [Applying AutoPass]"), pManager->m_nStartSignalSeq, reason, bRetWrite, bMoveWriteRet);
+}
+
 void CPLCSocketManager::MessageProcess()
 {
 	auto &plcData = ::g_PLCManager.m_sPLC.vecsVision2PLCData;
@@ -455,6 +479,10 @@ void CPLCSocketManager::MessageProcess()
 			if(startContext.jobNumber <= 0 || (long)::g_PLCManager.m_vecstrUseRecipe.size() < startContext.jobNumber)
 			{
 				::g_Log.Log(_T("PLC -> Vision::JobNumber Error(PLC:%d, Vision Max:%d)"), startContext.jobNumber, (long)::g_PLCManager.m_vecstrUseRecipe.size());
+				if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+				{
+					AutoPassRequestMove(this, _T("JobNumber Error - scan skipped"));
+				}
 				return;
 			}
 
@@ -483,6 +511,10 @@ void CPLCSocketManager::MessageProcess()
 			{
 				// 250711 TODO: 현장에서 해당 부분 가장 먼저 체크 필요 
 				::g_Log.Log(_T("PLC Recipe Load Fail")); // 해당 로그 있는지 확인해보고  없으면 PLC 알람 띄워달라 요청.. 필요한 경우 아래 주석 사용
+				if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+				{
+					AutoPassRequestMove(this, _T("Recipe Load Fail - scan skipped"));
+				}
 				// m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_REQ_Insp_Move], (long)BORGWARNER::DATA::OFF); 
 			}
 		}
@@ -524,7 +556,16 @@ void CPLCSocketManager::MessageProcess()
 				s_bMoveRespWarned = TRUE;
 				::g_Log.Log(_T("[PLC_MOVE_DIAG][WARN] Seq:%d No RESP_Insp_Move for %lu ms - REQ[30301.1]:%d Job:%d Cam:%d Div:%d"), m_nStartSignalSeq, (unsigned long)dwMoveWait, m_bStart, m_nJobNumber, m_nCameraIndex, m_nDivIndex);
 			}
-			if(dwMoveWait >= PLC_MOVE_RESP_ALARM_MS && s_bMoveAlarmOn == FALSE)
+			if(dwMoveWait >= PLC_MOVE_RESP_ALARM_MS && ::g_ConfigManager.m_bPLCAutoPass != FALSE)
+			{
+				// PLCAutoPass=1: ALARM(설비 정지·재시작 필요) 대신 로그만 남기고 REQ_Insp_Move를 유지한다 (다음 Start 또는 RESP 수신 시 정리)
+				if(s_bMoveAlarmSkipped == FALSE)
+				{
+					s_bMoveAlarmSkipped = TRUE;
+					::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d No RESP_Insp_Move for %lu ms - ALARM skipped, REQ_Insp_Move kept ON [Applying AutoPass]"), m_nStartSignalSeq, (unsigned long)dwMoveWait);
+				}
+			}
+			else if(dwMoveWait >= PLC_MOVE_RESP_ALARM_MS && s_bMoveAlarmOn == FALSE)
 			{
 				BOOL bAlarmOnRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::ON);
 				::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d No RESP_Insp_Move for %lu ms - Write 30200.4 PLC_DO_ALARM ON ret:%d"), m_nStartSignalSeq, (unsigned long)dwMoveWait, bAlarmOnRet);
@@ -767,6 +808,13 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 			}
 		}
 
+		if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+		{
+			// PLCAutoPass=1: 스캔 실패도 OK(1)로 보고 Move를 진행시켜 PLC가 대기 상태에 머물지 않게 한다
+			AutoPassRequestMove(this, _T("Scan failure"));
+		}
+		else
+		{
 		// 스캔 실패 통보 방식(ALARM/NG)은 PLC 재확인(Q4) 후 확정. 지금은 기존 신호를 유지하고,
 		// 비트 보존 쓰기로 RESP가 남지 않도록 REQ OFF 확인 시 폴링에서 끄게 한다.
 		if(m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_RESP_Insp_Start], (long)BORGWARNER::DATA::ON) != FALSE)
@@ -785,6 +833,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 		}
 		::g_Log.Log(_T("[PLC_MOVE_DIAG] Seq:%d Write 30201.4 PLC_DO_REQ_Insp_Move OFF ret:%d wr:%lu ms scan:%lu ms wait:%lu ms ret:%lu"), m_nStartSignalSeq, bMoveWriteRet, (unsigned long)dwMoveWriteElapsed, (unsigned long)(GetTickCount() - dwScanStartBeginTick), (unsigned long)dwScanWaitElapsed, (unsigned long)ret);
 		::g_Log.Log(_T("Vision -> PLC::Write Complete [address 30201.4] PLC_DO_REQ_Insp_Move : OFF"));
+		}
 
 		::g_Log.Log(_T("MSG_V2H::V2H_SCAN_FAIL"));
 	}
@@ -803,7 +852,14 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 			lResultCommitted = InterlockedCompareExchange(&g_lPlcResultCommitCount, 0, 0) - lResultBase;
 		}
 		DWORD dwResultWait = GetTickCount() - dwResultWaitTick;
-		if(lResultCommitted < lResultExpected)
+		if(lResultCommitted < lResultExpected && ::g_ConfigManager.m_bPLCAutoPass != FALSE)
+		{
+			// PLCAutoPass=1: 결과 누락(Grab 타임아웃, 검사 스레드 없음 등)도 OK(1)로 진행하고 ALARM은 켜지 않는다
+			BOOL bOkRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);
+			::g_Log.Log(_T("[PLC_MOVE_DIAG][ERROR] Seq:%d Inspection results not complete within %lu ms (%d/%d) - Write 30210 InspRet 1 ret:%d, ALARM skipped [Applying AutoPass]"),
+				m_nStartSignalSeq, (unsigned long)dwResultWait, lResultCommitted, lResultExpected, bOkRet);
+		}
+		else if(lResultCommitted < lResultExpected)
 		{
 			BOOL bNgRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);	// 검사 NG 처리 미운영: 결과 대기 초과 시에도 OK(1) 전송, 이상은 ALARM으로 통지
 			BOOL bAlarmRet = m_pCtrlPLC->WriteData(plcData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_DO_ALARM], (long)BORGWARNER::DATA::ON);
@@ -828,6 +884,7 @@ void CPLCSocketManager::ScanStart(const long cameraIndex, const long divIndex, c
 			m_bMoveReqOn = TRUE;
 			m_dwMoveReqOnTick = GetTickCount();
 			s_bMoveRespWarned = FALSE;
+			s_bMoveAlarmSkipped = FALSE;
 		}
 		else
 		{

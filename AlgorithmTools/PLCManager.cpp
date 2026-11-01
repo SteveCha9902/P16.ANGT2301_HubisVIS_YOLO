@@ -299,6 +299,12 @@ void CPLCManager::SetResultData_forBorgwarner(std::vector<SResultParams> vecResu
 	::g_Log.Log(_T("SetResultData_forBorgwarner Start"));
 	if((long)vecResult.size() <=0)
 	{
+		// PLCAutoPass=1: 결과가 비어도 InspRet을 OK(1)로 기록한다 (Start 시 지운 0이 남으면 PLC가 판정을 기다린다)
+		if(::g_ConfigManager.m_bPLCAutoPass != FALSE)
+		{
+			BOOL bRet = ::g_PLCSocketManager.m_pCtrlPLC->WriteData(m_sPLC.vecsVision2PLCData[(long)BORGWARNER::V2P_ADDR_NAME::PLC_OUT_InspRet], 1);
+			::g_Log.Log(_T("SetResultData_forBorgwarner Empty result - InspRet 1 ret:%d [Applying AutoPass]"), bRet);
+		}
 		return;
 	}
 

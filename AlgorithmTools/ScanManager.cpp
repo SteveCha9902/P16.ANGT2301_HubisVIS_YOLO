@@ -1,8 +1,9 @@
-#include "pch.h"
+ï»¿#include "pch.h"
 #include "ScanManager.h"
 #include "../VisionMain/DlgVisionMain.h"
 #include "../VisionMain/DlgMain1.h"
 #include "../VisionMain/DlgMain2.h"
+#include <map>
 
 #define SCAN_THREAD_READY_WAIT_TIMEOUT_MS 1000
 #define INSPECTION_THREAD_READY_WAIT_TIMEOUT_MS 1000
@@ -15,10 +16,89 @@ static char THIS_FILE[] = __FILE__;
 
 CScanManager g_ScanManager;
 
+// PLCAutoPass=1 ì „ìš© Master ì´ë¯¸ì§€ ëŒ€ì²´.
+// ì¹´ë©”ë¼Â·ì¡°ëª… ì—°ê²° ì‹¤íŒ¨ë‚˜ Grab íƒ€ì„ì•„ì›ƒ ì‹œ ì‹¤í–‰ í´ë” Simulation\{Before|After}\{cam}_{div}_raw.bmpë¥¼ ì´¬ì˜ ì˜ìƒ ëŒ€ì‹  ê²€ì‚¬í•œë‹¤.
+// (8bit gray BMP, í¬ê¸°ëŠ” ì´ë¯¸ì§€ ë©”ëª¨ë¦¬ì™€ ê°™ì•„ì•¼ í•œë‹¤. ì²˜ìŒ ì“¸ ë•Œ í•œ ë²ˆ ì½ì–´ ë©”ëª¨ë¦¬ì— ë³´ê´€í•œë‹¤)
+static CCriticalSection s_csMasterImage;
+static std::map<CString, std::vector<BYTE>> s_mapMasterImage;
+
+static BOOL LoadMasterImageFile(const CString &strPath, const long imageWidth, const long imageHeight, std::vector<BYTE> &image)
+{
+	HBITMAP hBitmap = (HBITMAP)::LoadImage(NULL, strPath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+	if(hBitmap == NULL)
+	{
+		return FALSE;
+	}
+
+	BOOL bRet = FALSE;
+	DIBSECTION dib;
+	memset(&dib, 0, sizeof(dib));
+	if(::GetObject(hBitmap, sizeof(dib), &dib) == sizeof(dib))
+	{
+		const BITMAP &bm = dib.dsBm;
+		const long height = abs(bm.bmHeight);
+		if(bm.bmBits != nullptr && bm.bmBitsPixel == 8 && bm.bmPlanes == 1 && bm.bmWidth == imageWidth && height == imageHeight && bm.bmWidthBytes >= imageWidth)
+		{
+			image.resize((size_t)imageWidth * (size_t)imageHeight);
+			for(long r = 0; r < height; r++)
+			{
+				const long srcRow = (dib.dsBmih.biHeight > 0) ? (height - 1 - r) : r;	// bottom-up DIB
+				memcpy(&image[(size_t)r * (size_t)imageWidth], (const BYTE*)bm.bmBits + (size_t)srcRow * (size_t)bm.bmWidthBytes, (size_t)imageWidth);
+			}
+			bRet = TRUE;
+		}
+	}
+
+	::DeleteObject(hBitmap);
+	return bRet;
+}
+
+static BOOL CopyMasterImage(const long threadIndex, const long camIndex, const long divIndex)
+{
+	const long imageWidth = ::g_MemoryManager.m_nImageWidth;
+	const long imageHeight = ::g_MemoryManager.m_nImageHeight;
+	BYTE* org = ::g_MemoryManager.GetByteImage(camIndex + divIndex * 2);   // 0,1,2,3,4,5
+
+	// ê²€ì‚¬ êµ¬ë¶„: ë ˆì‹œí”¼ íŒŒì¼ëª…ì´ Postë¡œ ì‹œì‘í•˜ë©´ í›„ê²€ì‚¬(After), ì•„ë‹ˆë©´ ì „ê²€ì‚¬(Before)
+	CString fileName = ::g_RecipeManager.m_currentRecipeName;
+	int lastSlash = fileName.ReverseFind('\\');
+	if(lastSlash >= 0)
+	{
+		fileName = fileName.Mid(lastSlash + 1);
+	}
+	const CString inspType = (fileName.Left(4).CompareNoCase(_T("Post")) == 0) ? _T("After") : _T("Before");
+
+	CString strPath;
+	strPath.Format(_T("%s\\Simulation\\%s\\%d_%d_raw.bmp"), ::g_ConfigManager.m_strCurPath, inspType, camIndex, divIndex);
+
+	if(org == nullptr || imageWidth <= 0 || imageHeight <= 0)
+	{
+		::g_Log.Log(_T("Scan Thread [%d] : [MASTER_IMAGE][ERROR] Image memory not ready - Cam:%d Div:%d"), threadIndex, camIndex, divIndex);
+		return FALSE;
+	}
+
+	CSingleLock lock(&s_csMasterImage, TRUE);
+	auto it = s_mapMasterImage.find(strPath);
+	if(it == s_mapMasterImage.end())
+	{
+		std::vector<BYTE> image;
+		if(LoadMasterImageFile(strPath, imageWidth, imageHeight, image) == FALSE)
+		{
+			::g_Log.Log(_T("Scan Thread [%d] : [MASTER_IMAGE][ERROR] Load failed (8bit gray %dx%d BMP required) - %s"), threadIndex, imageWidth, imageHeight, strPath);
+			return FALSE;
+		}
+		it = s_mapMasterImage.insert(std::make_pair(strPath, std::move(image))).first;
+	}
+
+	memcpy(org, &it->second[0], it->second.size());
+	::g_Log.Log(_T("Scan Thread [%d] : [MASTER_IMAGE] Camera image replaced - Cam:%d Div:%d %s [Applying AutoPass]"), threadIndex, camIndex, divIndex, strPath);
+	return TRUE;
+}
+
 CScanManager::CScanManager()
 	: m_pAlgorithm(nullptr)
 {
-	// º¯¼ö ÃÊ±âÈ­
+	// ë³€ìˆ˜ ì´ˆê¸°í™”
 	m_pAlgorithm = new CAlgorithm;
 }
 
@@ -34,7 +114,7 @@ void CScanManager::SetParent(CDlgVisionMain* pParent)
 
 void CScanManager::InitScanManageThread()
 {
-	// Scan Manage Thread ÃÊ±âÈ­
+	// Scan Manage Thread ì´ˆê¸°í™”
 	m_Manage_Scan.m_hSignal_Start = CreateEvent(NULL, FALSE, FALSE, NULL);
 	m_Manage_Scan.m_hSignal_Kill = CreateEvent(NULL, FALSE, FALSE, NULL);
 	m_Manage_Scan.m_Handle_Thread = INVALID_HANDLE_VALUE;
@@ -45,17 +125,17 @@ void CScanManager::InitScanManageThread()
 
 void CScanManager::FreeScanManageThread()
 {
-	// ¸ğµç Thread¿¡°Ô ÀÏÀ» ±×¸¸ÇÏ¶ó°í ¾Ë¸°´Ù.
+	// ëª¨ë“  Threadì—ê²Œ ì¼ì„ ê·¸ë§Œí•˜ë¼ê³  ì•Œë¦°ë‹¤.
 	::SetEvent(m_Manage_Scan.m_hSignal_Kill);
 
-	// Thread°¡ Á¾·áµÇ±â¸¦ ±â´Ù¸°´Ù.
+	// Threadê°€ ì¢…ë£Œë˜ê¸°ë¥¼ ê¸°ë‹¤ë¦°ë‹¤.
 	DWORD dwWaitRet = ::WaitForSingleObject(m_Manage_Scan.m_Handle_Thread, 5000);
 	if(dwWaitRet != WAIT_OBJECT_0)
 	{
 		::g_Log.Log(_T("[THREAD_DIAG][ERROR] Scan manage thread stop timeout - Ret:%lu"), dwWaitRet);
 	}
 
-	// °ü·Ã ÇÚµéÀ» ¸ğµÎ ´İ´Â´Ù.
+	// ê´€ë ¨ í•¸ë“¤ì„ ëª¨ë‘ ë‹«ëŠ”ë‹¤.
 	::CloseHandle(m_Manage_Scan.m_hSignal_Start);
 	::CloseHandle(m_Manage_Scan.m_hSignal_Kill);
 	::CloseHandle(m_Manage_Scan.m_Handle_Thread);
@@ -63,7 +143,7 @@ void CScanManager::FreeScanManageThread()
 
 void CScanManager::InitScanThread()
 {
-	// Scan Thread ÃÊ±âÈ­
+	// Scan Thread ì´ˆê¸°í™”
 	m_Control_Scan.resize(SCAN_THREAD_COUNT);
 	m_vecnCamIndex.resize(SCAN_THREAD_COUNT);
 	m_vecnDivIndex.resize(SCAN_THREAD_COUNT);
@@ -98,14 +178,14 @@ void CScanManager::InitScanThread()
 
 void CScanManager::FreeScanThread()
 {
-	// ¸ğµç Thread¿¡°Ô ÀÏÀ» ±×¸¸ÇÏ¶ó°í ¾Ë¸°´Ù.
+	// ëª¨ë“  Threadì—ê²Œ ì¼ì„ ê·¸ë§Œí•˜ë¼ê³  ì•Œë¦°ë‹¤.
 	for(long nThread = long(m_Control_Scan.size() - 1); nThread >= 0; nThread--)
 	{
 		::SetEvent(m_Control_Scan[nThread].m_hSignal_Kill);
 		m_vecbScanRunning[nThread] = FALSE;
 	}
 
-	// Thread°¡ Á¾·áµÇ±â¸¦ ±â´Ù¸°´Ù.
+	// Threadê°€ ì¢…ë£Œë˜ê¸°ë¥¼ ê¸°ë‹¤ë¦°ë‹¤.
 	for(long nThread = long(m_Control_Scan.size() - 1); nThread >= 0; nThread--)
 	{
 		DWORD dwWaitRet = ::WaitForSingleObject(m_Control_Scan[nThread].m_Handle_Thread, 5000);
@@ -115,7 +195,7 @@ void CScanManager::FreeScanThread()
 		}
 	}
 
-	// °ü·Ã ÇÚµéÀ» ¸ğµÎ ´İ´Â´Ù.
+	// ê´€ë ¨ í•¸ë“¤ì„ ëª¨ë‘ ë‹«ëŠ”ë‹¤.
 	for(long nThread = long(m_Control_Scan.size() - 1); nThread >= 0; nThread--)
 	{
 		::CloseHandle(m_Control_Scan[nThread].m_hSignal_Kill);
@@ -126,7 +206,7 @@ void CScanManager::FreeScanThread()
 	}
 }
 
-// Scan Manage Thread ÇÔ¼ö
+// Scan Manage Thread í•¨ìˆ˜
 UINT CScanManager::ThreadScanManageFunc(LPVOID pParam)
 {
 	CScanManager *pSeqThreadManager = (CScanManager *)pParam;
@@ -161,7 +241,7 @@ void CScanManager::ScanManage()
 				vechScanReady[thread] = m_Control_Scan[thread].m_hSignal_Ready;
 			}
 
-			// »ç¿ëÇÒ ¼ö ÀÖ´Â Scan ¾²·¹µå¸¦ Ã£´Â´Ù...
+			// ì‚¬ìš©í•  ìˆ˜ ìˆëŠ” Scan ì“°ë ˆë“œë¥¼ ì°¾ëŠ”ë‹¤...
 			DWORD dwRet = ::WaitForMultipleObjects(SCAN_THREAD_COUNT, pScanReadyHandles, FALSE, SCAN_THREAD_READY_WAIT_TIMEOUT_MS);
 
 			if(dwRet == WAIT_TIMEOUT)
@@ -186,10 +266,10 @@ void CScanManager::ScanManage()
 			m_vecnCamIndex[threadIndex] = m_nCamIndex;
 			m_vecnDivIndex[threadIndex] = m_nDivIndex;
 
-			// »ç¿ëÇÒ ¼ö ÀÖ´Â Scan ¾²·¹µå ÇÑÅ× Scan ½ÃÀÛ Áö½ÃÇÑ´Ù.
+			// ì‚¬ìš©í•  ìˆ˜ ìˆëŠ” Scan ì“°ë ˆë“œ í•œí…Œ Scan ì‹œì‘ ì§€ì‹œí•œë‹¤.
 			StartScan(threadIndex);
 		}
-		else // Scan Manage Thread Á¾·á
+		else // Scan Manage Thread ì¢…ë£Œ
 		{
 			break;
 		}
@@ -201,7 +281,7 @@ void CScanManager::StartScanManage(const long camIndex, const long divIndex)
 	m_nCamIndex = camIndex;
 	m_nDivIndex = divIndex;
 
-	// PLC Á¢¼Ó µÇÁö ¾Ê¾ÒÀ» ¶§´Â MainUI °¡ °¡Áö°í ÀÖ´Â m_nVisionIndex, m_nDivIndex ¸¦ °¡Á®¿Â´Ù.
+	// PLC ì ‘ì† ë˜ì§€ ì•Šì•˜ì„ ë•ŒëŠ” MainUI ê°€ ê°€ì§€ê³  ìˆëŠ” m_nVisionIndex, m_nDivIndex ë¥¼ ê°€ì ¸ì˜¨ë‹¤.
 	if(::g_PLCSocketManager.IsConnect() == FALSE)
 	{
 		switch(::g_ConfigManager.m_nMainUI)
@@ -222,7 +302,7 @@ void CScanManager::StartScanManage(const long camIndex, const long divIndex)
 	Sleep(100);
 }
 
-// Scan Thread ÇÔ¼ö
+// Scan Thread í•¨ìˆ˜
 UINT CScanManager::ThreadScanFunc(LPVOID pParam)
 {
 	CScanManager *pSeqThreadManager = (CScanManager *)pParam;
@@ -282,7 +362,7 @@ void CScanManager::Scan()
 
 			::g_Log.Log(_T("Scan Thread [%d] : Scan End"), nThreadID);
 
-			// Scan ³¡
+			// Scan ë
 			::SetEvent(control.m_hSignal_Finish);
 
 			break;
@@ -340,8 +420,27 @@ void CScanManager::RunScan(const long threadIndex)
 	{
 		::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY"), threadIndex);
 
-		// Ä«¸Ş¶ó ¿¬°á È®ÀÎ
-		if(pCtrlCamera->IsOpen() == FALSE)
+		// PLCAutoPass=1: ì¹´ë©”ë¼Â·ì¡°ëª…ì´ ì—°ê²°ë˜ì§€ ì•Šì•˜ìœ¼ë©´ Master ì´ë¯¸ì§€ë¡œ ëŒ€ì²´í•´ ê²€ì‚¬ë¥¼ ì§„í–‰í•œë‹¤
+		if(::g_ConfigManager.m_bPLCAutoPass != FALSE && (pCtrlCamera == nullptr || pCtrlCamera->IsOpen() == FALSE || ::g_CtrlSerial.IsOpen() == FALSE))
+		{
+			::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY - Camera(%d) open:%d, Illumination open:%d"), threadIndex, camIndex,
+				(pCtrlCamera != nullptr) ? pCtrlCamera->IsOpen() : FALSE, ::g_CtrlSerial.IsOpen());
+
+			if(CopyMasterImage(threadIndex, camIndex, divIndex) == TRUE)
+			{
+				scanDone = TRUE;
+				scanStep = SCAN_SEQUENCE::INSPECTION_START;
+			}
+			else
+			{
+				scanDone = FALSE;
+				scanStep = SCAN_SEQUENCE::ERROR_STEP;
+			}
+			break;
+		}
+
+		// ì¹´ë©”ë¼ ì—°ê²° í™•ì¸
+		if(pCtrlCamera == nullptr || pCtrlCamera->IsOpen() == FALSE)
 		{
 			::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY - No Found Camera"), threadIndex);
 
@@ -349,7 +448,7 @@ void CScanManager::RunScan(const long threadIndex)
 			break;
 		}
 
-		// Á¶¸í ¿¬°á È®ÀÎ
+		// ì¡°ëª… ì—°ê²° í™•ì¸
 		if(::g_CtrlSerial.IsOpen() == FALSE)
 		{
 			::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY - No Found Illumination"), threadIndex);
@@ -358,8 +457,8 @@ void CScanManager::RunScan(const long threadIndex)
 			break;
 		}
 
-		// Á¶¸íÁ¶°Ç °¡Á®¿À±â...
-		// ¹İµå½Ã InspItem ¿¡¼­ Á¶¸í¼³Á¤À» ÇØ¾ß Á¤»óÀûÀÎ Scan ÀÌ °¡´ÉÇÏ´Ù.
+		// ì¡°ëª…ì¡°ê±´ ê°€ì ¸ì˜¤ê¸°...
+		// ë°˜ë“œì‹œ InspItem ì—ì„œ ì¡°ëª…ì„¤ì •ì„ í•´ì•¼ ì •ìƒì ì¸ Scan ì´ ê°€ëŠ¥í•˜ë‹¤.
 		SIllumParams sillum;
 		sillum.Init();
 		BOOL bExistIllum(FALSE);
@@ -373,7 +472,7 @@ void CScanManager::RunScan(const long threadIndex)
 			}
 		}
 
-		if(bExistIllum == FALSE) // Á¶¸íÁ¶°Ç ¸øÃ£¾ÒÀ¸¸é Scan ÇÏÁö ¸»ÀÚ.
+		if(bExistIllum == FALSE) // ì¡°ëª…ì¡°ê±´ ëª»ì°¾ì•˜ìœ¼ë©´ Scan í•˜ì§€ ë§ì.
 		{
 			::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY - No Found Illumination Setting"), threadIndex);
 
@@ -383,7 +482,7 @@ void CScanManager::RunScan(const long threadIndex)
 
 		// Illum. On
 		unsigned short *illum = nullptr;
-		if(::g_ConfigManager.m_bMultiIllumination == TRUE) // Multi Á¶¸íÄÁÆ®·Ñ·¯¸¦ »ç¿ëÇÒ ¶§
+		if(::g_ConfigManager.m_bMultiIllumination == TRUE) // Multi ì¡°ëª…ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ì‚¬ìš©í•  ë•Œ
 		{
 			illum = sillum.m_usIllum;
 		}
@@ -426,7 +525,7 @@ void CScanManager::RunScan(const long threadIndex)
 			memcpy(org, pCtrlCamera->GetImage(), pCtrlCamera->GetImageSize());
 
 			// Illum. Off
-			if(::g_ConfigManager.m_bMultiIllumination == TRUE) // Multi Á¶¸íÄÁÆ®·Ñ·¯¸¦ »ç¿ëÇÒ ¶§
+			if(::g_ConfigManager.m_bMultiIllumination == TRUE) // Multi ì¡°ëª…ì»¨íŠ¸ë¡¤ëŸ¬ë¥¼ ì‚¬ìš©í•  ë•Œ
 			{
 				for(long idx = 0; idx < ILLUM_CHANNEL_MAX; idx++)
 				{
@@ -444,6 +543,23 @@ void CScanManager::RunScan(const long threadIndex)
 		else
 		{
 			::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SCAN_READY - Camera(%d) Grab Time out"), threadIndex, camIndex);
+
+			// PLCAutoPass=1: Grab ì‹¤íŒ¨ ì‹œ Master ì´ë¯¸ì§€ë¡œ ëŒ€ì²´í•´ ê²€ì‚¬ë¥¼ ì§„í–‰í•œë‹¤
+			if(::g_ConfigManager.m_bPLCAutoPass != FALSE && CopyMasterImage(threadIndex, camIndex, divIndex) == TRUE)
+			{
+				if(::g_ConfigManager.m_bMultiIllumination == TRUE)
+				{
+					for(long idx = 0; idx < ILLUM_CHANNEL_MAX; idx++)
+					{
+						::g_CtrlSerial.IllumOff(idx);
+					}
+				}
+				::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_GRAB_STATUS, FALSE, camIndex);
+
+				scanDone = TRUE;
+				scanStep = SCAN_SEQUENCE::INSPECTION_START;
+				break;
+			}
 
 			scanDone = FALSE;
 			scanStep = SCAN_SEQUENCE::ERROR_STEP;
@@ -463,7 +579,7 @@ void CScanManager::RunScan(const long threadIndex)
 			vechInspReady[thread] = ::g_InspectionManager.m_Control_Inspection[thread].m_hSignal_Ready;
 		}
 
-		// »ç¿ëÇÒ ¼ö ÀÖ´Â °Ë»ç ¾²·¹µå¸¦ Ã£´Â´Ù...
+		// ì‚¬ìš©í•  ìˆ˜ ìˆëŠ” ê²€ì‚¬ ì“°ë ˆë“œë¥¼ ì°¾ëŠ”ë‹¤...
 		DWORD dwRet = ::WaitForMultipleObjects(INSPECTION_THREAD_COUNT, pInspReadyHandles, FALSE, INSPECTION_THREAD_READY_WAIT_TIMEOUT_MS);
 
 		if(dwRet == WAIT_TIMEOUT)
@@ -491,24 +607,24 @@ void CScanManager::RunScan(const long threadIndex)
 			break;
 		}
 
-		// »ç¿ëÇÒ ¼ö ÀÖ´Â °Ë»ç ¾²·¹µå ÇÑÅ× °Ë»ç ½ÃÀÛ Áö½ÃÇÑ´Ù.
+		// ì‚¬ìš©í•  ìˆ˜ ìˆëŠ” ê²€ì‚¬ ì“°ë ˆë“œ í•œí…Œ ê²€ì‚¬ ì‹œì‘ ì§€ì‹œí•œë‹¤.
 		::g_InspectionManager.StartInsp(inspThreadIndex, camIndex, divIndex, barcode, scanTime);
-		// ¹Ù·Î Image ¸¦ Ç¥½ÃÇÑ´Ù.
-		// °Ë»ç Time outÀº °Ë»ç ¾²·¹µå¿¡¼­ Ã¼Å©ÇÑ´Ù.
+		// ë°”ë¡œ Image ë¥¼ í‘œì‹œí•œë‹¤.
+		// ê²€ì‚¬ Time outì€ ê²€ì‚¬ ì“°ë ˆë“œì—ì„œ ì²´í¬í•œë‹¤.
 		scanStep = SCAN_SEQUENCE::IMAGE_DISPLAY;
 	}
 	break;
-	case SCAN_SEQUENCE::IMAGE_DISPLAY: // ¿µ»ó Ç¥½Ã
+	case SCAN_SEQUENCE::IMAGE_DISPLAY: // ì˜ìƒ í‘œì‹œ
 	{
 		::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::IMAGE_DISPLAY"), threadIndex);
 
-		// ¿µ»ó Ç¥½Ã
+		// ì˜ìƒ í‘œì‹œ
 		::PostMessage(m_pParent->GetSafeHwnd(), UM_UPDATE_IMAGE, camIndex, divIndex);
 
 		scanStep = SCAN_SEQUENCE::SAVE_IMAGE;
 	}
 	break;
-	case SCAN_SEQUENCE::SAVE_IMAGE: // Image ÀúÀå
+	case SCAN_SEQUENCE::SAVE_IMAGE: // Image ì €ì¥
 	{
 		::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SAVE_IMAGE"), threadIndex);
 
@@ -517,7 +633,7 @@ void CScanManager::RunScan(const long threadIndex)
 		scanStep = SCAN_SEQUENCE::SEQUENCE_DONE;
 	}
 	break;
-	case SCAN_SEQUENCE::SEQUENCE_DONE: // Sequence ¿Ï·á
+	case SCAN_SEQUENCE::SEQUENCE_DONE: // Sequence ì™„ë£Œ
 	{
 		::g_Log.Log(_T("Scan Thread [%d] : SCAN_SEQUENCE::SEQUENCE_DONE"), threadIndex);
 

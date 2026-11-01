@@ -158,7 +158,7 @@ void CDataSaveManager::ThreadDataSave()
 						RawImageSaveJob(saveJob);
 						break;
 					case DATA_SAVE::RESULT_IMAGE:
-						ResultImageSave(saveJob.manualInspection);
+						ResultImageSave(saveJob);
 						break;
 					case DATA_SAVE::RESULT_DATA_CSV:
 						ResultDataSave(saveJob.manualInspection);
@@ -170,7 +170,7 @@ void CDataSaveManager::ThreadDataSave()
 					::g_Log.Log(_T("[STORAGE_BACKPRESSURE] Data Save Thread : Drive No Capacity - job retained"));
 					::EnterCriticalSection(&m_csDataSaveQueue);
 					m_queueDataSaveJob.push_front(saveJob);
-					if(saveJob.method == DATA_SAVE::RAW_IMAGE)
+					if(saveJob.rawImage.empty() == false)
 					{
 						m_nQueuedRawImageJobCount++;
 						m_ullQueuedRawImageBytes += (ULONGLONG)saveJob.rawImage.size();
@@ -235,7 +235,7 @@ static CString s_strSampleTime(_T(""));
 // 저장 스레드 쪽: 최근 시료 폴더 (키 -> 폴더). 처리 순서가 섞여도 같은 시료는 같은 폴더를 쓴다.
 static std::deque<std::pair<CString, CString>> s_recentSampleFolders;
 
-void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const long camIdx, const long divIdx, CString time, const int result)
+void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const long camIdx, const long divIdx, CString time, const int result, const COverlayManager* pOverlay)
 {
 	SDataSaveJob job;
 	job.method = method;
@@ -247,7 +247,8 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 	job.inspectionType = GetInspectionTypeFromRecipe(::g_RecipeManager.m_currentRecipeName);	// 1) 요청 시점의 검사 구분 고정
 	job.manualInspection = FALSE;
 
-	if(method == DATA_SAVE::RAW_IMAGE)
+	// 결과 이미지도 요청 시점의 영상·오버레이를 복사해 둔다. 저장 스레드가 늦게 처리해도 다음 검사로 바뀌지 않음
+	if(method == DATA_SAVE::RAW_IMAGE || method == DATA_SAVE::RESULT_IMAGE)
 	{
 		job.imageWidth = m_nImageWidth;
 		job.imageHeight = m_nImageHeight;
@@ -264,7 +265,7 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 		{
 			if(WaitDataSaveQueueSpace((DWORD)job.imageSize) == FALSE)
 			{
-				::g_Log.Log(_T("[STORAGE_BACKPRESSURE][ERROR] RAW save dropped - queue remained full Cam:%d Div:%d Bytes:%d"), camIdx, divIdx, job.imageSize);
+				::g_Log.Log(_T("[STORAGE_BACKPRESSURE][ERROR] %s save dropped - queue remained full Cam:%d Div:%d Bytes:%d"), (method == DATA_SAVE::RESULT_IMAGE) ? _T("RESULT") : _T("RAW"), camIdx, divIdx, job.imageSize);
 				return;
 			}
 
@@ -279,6 +280,11 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 			{
 				::g_Log.Log(_T("[STORAGE_BACKPRESSURE][WARN] RAW image copy skipped - image buffer null Cam:%d Div:%d Index:%d"), camIdx, divIdx, imageIndex);
 			}
+		}
+
+		if(method == DATA_SAVE::RESULT_IMAGE && pOverlay != nullptr)
+		{
+			job.overlay = std::make_shared<COverlayManager>(*pOverlay);
 		}
 	}
 
@@ -295,8 +301,20 @@ void CDataSaveManager::StartDataSave(DATA_SAVE method, CString barcode, const lo
 		}
 		job.cycleTime = s_strSampleTime;
 	}
+	else if(job.method == DATA_SAVE::RESULT_IMAGE)
+	{
+		// 결과 이미지는 같은 시료의 원본 폴더에 저장한다. Div 0은 자기 스캔 시각이 시료 기준 시각
+		if(job.divIdx != 0 && s_strSampleType == job.inspectionType && s_strSampleBarcode == job.barcode)
+		{
+			job.cycleTime = s_strSampleTime;
+		}
+		else
+		{
+			job.cycleTime = job.time;
+		}
+	}
 	m_queueDataSaveJob.push_back(job);
-	if(job.method == DATA_SAVE::RAW_IMAGE)
+	if(job.rawImage.empty() == false)	// 영상 복사본이 있는 작업(RAW, RESULT_IMAGE)은 큐 상한에 포함
 	{
 		m_nQueuedRawImageJobCount++;
 		m_ullQueuedRawImageBytes += (ULONGLONG)job.rawImage.size();
@@ -316,7 +334,7 @@ BOOL CDataSaveManager::PopDataSaveJob(SDataSaveJob& job)
 	{
 		job = m_queueDataSaveJob.front();
 		m_queueDataSaveJob.pop_front();
-		if(job.method == DATA_SAVE::RAW_IMAGE)
+		if(job.rawImage.empty() == false)
 		{
 			m_nQueuedRawImageJobCount--;
 			if(m_nQueuedRawImageJobCount < 0)
@@ -465,7 +483,12 @@ void CDataSaveManager::CreateDirectoryRecursive(const CString strPath)
 
 CString CDataSaveManager::GetRawImageSaveFolder(const SDataSaveJob& job)
 {
-	CString savePath = ::g_ConfigManager.m_strRawImageSavePath;
+	return GetSampleSaveFolder(job, ::g_ConfigManager.m_strRawImageSavePath);
+}
+
+// 시료 단위 저장 폴더: <savePath>\<Before|After>\yyyy\mm\dd\<바코드>. 원본·결과 이미지가 같은 규칙을 쓴다
+CString CDataSaveManager::GetSampleSaveFolder(const SDataSaveJob& job, const CString savePath)
+{
 	if(savePath == _T(""))
 	{
 		return _T("");
@@ -510,7 +533,7 @@ CString CDataSaveManager::GetRawImageSaveFolder(const SDataSaveJob& job)
 	}
 
 	CString cycleKey;
-	cycleKey.Format(_T("%s|%s|%s"), inspectionType, barcode, sampleTime);
+	cycleKey.Format(_T("%s|%s|%s|%s"), savePath, inspectionType, barcode, sampleTime);
 	if(cycleKey == m_strCurrentCycleKey && m_strCurrentSaveFolder != _T(""))
 	{
 		return m_strCurrentSaveFolder;
@@ -640,10 +663,8 @@ void CDataSaveManager::ResultDataSave(const BOOL bManualInspection)
 	}
 }
 
-void CDataSaveManager::ResultImageSave(const BOOL bManualInspection)
+void CDataSaveManager::ResultImageSave(const SDataSaveJob& job)
 {
-	CString strTemp;
-
 	auto savePath = ::g_ConfigManager.m_strResultImageSavePath;
 
 	if(savePath == _T(""))
@@ -652,129 +673,164 @@ void CDataSaveManager::ResultImageSave(const BOOL bManualInspection)
 		return;
 	}
 
-	BYTE* pbyImage = ::g_MemoryManager.GetByteImage(m_nCamIdx);
-
-	CImage* image = new CImage;
-	image->Destroy();
-	image->Create(m_nImageWidth, m_nImageHeight, 24);
-
-	::g_Algorithm.GetGrayToColorImage(pbyImage, m_nImageWidth, m_nImageHeight, 8, CRect(0, 0, m_nImageWidth, m_nImageHeight), image);
-
-	if(image != nullptr)
+	// 요청 시점에 복사한 영상·오버레이만 사용한다 (공유 버퍼·Setup 검사 객체를 읽지 않음)
+	if(job.rawImage.empty() == true || job.imageWidth <= 0 || job.imageHeight <= 0)
 	{
-		CDC* pDC = CDC::FromHandle(image->GetDC());
-
-		pDC->SetBkMode(TRANSPARENT);
-		CBrush redBrush(RGB(255, 0, 0));
-		CPen redPen(PS_SOLID, 3, RGB(255, 0, 0));
-		CPen redPen2(PS_SOLID, 10, RGB(255, 0, 0));
-
-		CBrush greenBrush(RGB(0, 255, 0));
-		CPen greenPen(PS_SOLID, 3, RGB(0, 255, 0));
-
-		CBrush yellowBrush(RGB(255, 255, 0));
-		CPen yellowPen(PS_SOLID, 3, RGB(255, 255, 0));
-
-		CFont *pOldFont;
-		pOldFont = pDC->GetCurrentFont();
-
-		CFont font;
-		font.CreatePointFont(750, _T("Tahoma"));
-
-		pDC->SelectObject(&font);
-
-		switch(m_nResult)
-		{
-		case 0: // NG
-			pDC->SelectObject(&redBrush);
-			pDC->SelectObject(&redPen);
-			break;
-		case 1: // OK
-			pDC->SelectObject(&greenBrush);
-			pDC->SelectObject(&greenPen);
-			break;
-		default:
-			pDC->SelectObject(&yellowBrush);
-			pDC->SelectObject(&yellowPen);
-			break;
-		}
-
-		// PLC가 ??동 모드????는 auto?? ??동 모드????는 Manual????작
-		auto overlayManager = ::g_InspectionManager.m_pInspection->m_pOverlayManager;
-
-		for(long nStep = DEBUG_RESULT; nStep <= DEBUG_RESULT_NG; nStep++)
-		{
-			long nType;
-			long nOverlay = 0;
-
-			COLORREF color = overlayManager->GetStepColor(nStep);
-			void *data = NULL;
-
-			while(data = overlayManager->GetData(nStep, nOverlay, nType, TRUE))
-			{
-				switch(nType)
-				{
-				case INTERMEDIATE_RECT:
-				{
-					CRect &sdata = *(CRect *)data;
-
-					pDC->MoveTo(sdata.left, sdata.top);
-					pDC->LineTo(sdata.right, sdata.top);
-					pDC->MoveTo(sdata.left, sdata.top);
-					pDC->LineTo(sdata.left, sdata.bottom);
-					pDC->MoveTo(sdata.left, sdata.bottom);
-					pDC->LineTo(sdata.right, sdata.bottom);
-					pDC->MoveTo(sdata.right, sdata.top);
-					pDC->LineTo(sdata.right, sdata.bottom);
-				}
-				break;
-				case INTERMEDIATE_CRPOINT:		pDC->SetPixelV(*(CPoint *)data, color);
-					break;
-				case INTERMEDIATE_POINT:		pDC->SetPixelV(*(CPoint *)data, color);
-					break;
-				case INTERMEDIATE_LINE:
-				{
-					SOverlay_Line &sdata = *(SOverlay_Line *)data;
-					pDC->MoveTo(sdata.ptStart.x, sdata.ptStart.y);
-					pDC->LineTo(sdata.ptEnd.x, sdata.ptEnd.y);
-				}
-				break;
-				case INTERMEDIATE_STRING:
-				{
-					SOverlay_String &sdata = *(SOverlay_String *)data;
-					pDC->DrawText(sdata.strText, CRect(sdata.ptXY.x - 5, sdata.ptXY.y - 5, sdata.ptXY.x + 5, sdata.ptXY.y + 5), DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOCLIP);
-				}
-				break;
-				case INTERMEDIATE_ELLIPSE:
-					pDC->Ellipse(*(CRect *)data);
-					break;
-				}
-
-				nOverlay++;
-			}
-		}
-
-		image->ReleaseDC();
-
-		CString strSavePath = GetSavePath(savePath, bManualInspection);
-
-		CString strPath, strResult(_T(""));
-		switch(m_nResult)
-		{
-		case 0: // NG
-			strResult.Format(_T("NG"));
-			break;
-		case 1: // OK
-			strResult.Format(_T("OK"));
-			break;
-		}
-
-		strPath.Format(_T("%s\\%s_%s_%d_%d_result_%s.jpg"), strSavePath, m_strBarcode, m_strTime, m_nCamIdx, m_nDivIdx, strResult);
-
-		// image->Save(strPath); // ????지 ????안??도????정
+		::g_Log.Log(_T("[STORAGE_IO][WARN] ResultImageSave skipped - empty payload Cam:%d Div:%d Barcode:%s Time:%s"), job.camIdx, job.divIdx, job.barcode, job.time);
+		return;
 	}
 
-	delete image;
+	CString strSaveFolder = GetSampleSaveFolder(job, savePath);
+	if(strSaveFolder == _T(""))
+	{
+		::g_Log.Log(_T("ResultImageSave::Save Fail - Folder Error!!"));
+		return;
+	}
+
+	DWORD dwWriteBeginTick = GetTickCount();
+
+	CImage image;
+	image.Create(job.imageWidth, job.imageHeight, 24);
+
+	BYTE* pbyImage = const_cast<BYTE*>(&job.rawImage[0]);
+	::g_Algorithm.GetGrayToColorImage(pbyImage, job.imageWidth, job.imageHeight, 8, CRect(0, 0, job.imageWidth, job.imageHeight), &image);
+
+	CDC* pDC = CDC::FromHandle(image.GetDC());
+
+	pDC->SetBkMode(TRANSPARENT);
+	CBrush redBrush(RGB(255, 0, 0));
+	CPen redPen(PS_SOLID, 3, RGB(255, 0, 0));
+
+	CBrush greenBrush(RGB(0, 255, 0));
+	CPen greenPen(PS_SOLID, 3, RGB(0, 255, 0));
+
+	CBrush yellowBrush(RGB(255, 255, 0));
+	CPen yellowPen(PS_SOLID, 3, RGB(255, 255, 0));
+
+	CFont font;
+	font.CreatePointFont(750, _T("Tahoma"));
+
+	CFont* pOldFont = pDC->SelectObject(&font);
+	CBrush* pOldBrush = nullptr;
+	CPen* pOldPen = nullptr;
+
+	switch(job.result)
+	{
+	case 0: // NG
+		pOldBrush = pDC->SelectObject(&redBrush);
+		pOldPen = pDC->SelectObject(&redPen);
+		pDC->SetTextColor(RGB(255, 0, 0));
+		break;
+	case 1: // OK
+		pOldBrush = pDC->SelectObject(&greenBrush);
+		pOldPen = pDC->SelectObject(&greenPen);
+		pDC->SetTextColor(RGB(0, 255, 0));
+		break;
+	default:
+		pOldBrush = pDC->SelectObject(&yellowBrush);
+		pOldPen = pDC->SelectObject(&yellowPen);
+		pDC->SetTextColor(RGB(255, 255, 0));
+		break;
+	}
+
+	if(job.overlay != nullptr)
+	{
+		// 화면(CDlgMain2::SetImageOverlay)과 같은 단계: 결과 단계 + OK/NG 단계
+		const long steps[][2] = {{DEBUG_RESULT_BEGIN, DEBUG_RESULT_END}, {DEBUG_RESULT, DEBUG_RESULT_NG}};
+		for(const auto &range : steps)
+		{
+			for(long nStep = range[0]; nStep <= range[1]; nStep++)
+			{
+				long nType;
+				long nOverlay = 0;
+
+				COLORREF color = job.overlay->GetStepColor(nStep);
+				void *data = NULL;
+
+				while(data = job.overlay->GetData(nStep, nOverlay, nType, TRUE))
+				{
+					switch(nType)
+					{
+					case INTERMEDIATE_RECT:
+					{
+						CRect &sdata = *(CRect *)data;
+
+						pDC->MoveTo(sdata.left, sdata.top);
+						pDC->LineTo(sdata.right, sdata.top);
+						pDC->MoveTo(sdata.left, sdata.top);
+						pDC->LineTo(sdata.left, sdata.bottom);
+						pDC->MoveTo(sdata.left, sdata.bottom);
+						pDC->LineTo(sdata.right, sdata.bottom);
+						pDC->MoveTo(sdata.right, sdata.top);
+						pDC->LineTo(sdata.right, sdata.bottom);
+					}
+					break;
+					case INTERMEDIATE_CRPOINT:		pDC->SetPixelV(*(CPoint *)data, color);
+						break;
+					case INTERMEDIATE_POINT:		pDC->SetPixelV(*(CPoint *)data, color);
+						break;
+					case INTERMEDIATE_LINE:
+					{
+						SOverlay_Line &sdata = *(SOverlay_Line *)data;
+						pDC->MoveTo(sdata.ptStart.x, sdata.ptStart.y);
+						pDC->LineTo(sdata.ptEnd.x, sdata.ptEnd.y);
+					}
+					break;
+					case INTERMEDIATE_STRING:
+					{
+						SOverlay_String &sdata = *(SOverlay_String *)data;
+						pDC->DrawText(sdata.strText, CRect(sdata.ptXY.x - 5, sdata.ptXY.y - 5, sdata.ptXY.x + 5, sdata.ptXY.y + 5), DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOCLIP);
+					}
+					break;
+					case INTERMEDIATE_ELLIPSE:
+						pDC->Ellipse(*(CRect *)data);
+						break;
+					}
+
+					nOverlay++;
+				}
+			}
+		}
+	}
+
+	// 선택한 GDI 객체를 되돌린 뒤 DC 반환 (선택된 채로 두면 객체가 삭제되지 않음)
+	pDC->SelectObject(pOldFont);
+	pDC->SelectObject(pOldBrush);
+	pDC->SelectObject(pOldPen);
+	image.ReleaseDC();
+
+	CString strResult;
+	switch(job.result)
+	{
+	case 0: // NG
+		strResult = _T("NG");
+		break;
+	case 1: // OK
+		strResult = _T("OK");
+		break;
+	default:
+		strResult = _T("NA");
+		break;
+	}
+
+	CString strPath;
+	strPath.Format(_T("%s\\%d_%d_result_%s.jpg"), strSaveFolder, job.camIdx, job.divIdx, strResult);
+	if(PathFileExists(strPath))
+	{
+		DeleteFile(strPath);
+	}
+
+	HRESULT hr = image.Save(strPath);
+	DWORD dwWriteElapsed = GetTickCount() - dwWriteBeginTick;
+
+	if(FAILED(hr))
+	{
+		::g_Log.Log(_T("[STORAGE_IO][ERROR] ResultImageSave failed - hr:0x%08X Cam:%d Div:%d Path:%s"), (unsigned int)hr, job.camIdx, job.divIdx, strPath);
+	}
+	else if(dwWriteElapsed > 500)
+	{
+		::g_Log.Log(_T("[STORAGE_IO][WARN] ResultImageSave slow - Cam:%d Div:%d elapsed:%lu ms Path:%s"), job.camIdx, job.divIdx, (unsigned long)dwWriteElapsed, strPath);
+	}
 }
 
 void CDataSaveManager::RawImageSave(const BOOL bManualInspection)
