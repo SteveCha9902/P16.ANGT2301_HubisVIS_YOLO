@@ -2,6 +2,7 @@
 
 실행: python review_labels.py            (data/review_list.txt 순서, 검수 안 한 첫 영상부터)
       python review_labels.py --all      (처음부터)
+      python review_labels.py --name <영상이름>  (그 영상부터, 검수 완료 영상 다시 고칠 때)
 먼저 한 번: python convert_box_labels.py (기존 박스 초안 → 타원 초안)
 
 조작
@@ -333,6 +334,7 @@ class Reviewer:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--all", action="store_true", help="검수 여부와 관계없이 처음부터")
+    parser.add_argument("--name", help="이 영상(확장자 없는 이름)부터 연다. 검수 완료 영상을 다시 고칠 때")
     args = parser.parse_args()
 
     if not ELLIPSES.exists():
@@ -342,6 +344,10 @@ def main():
         raise SystemExit("data/review_list.txt가 비어 있습니다. make_draft_labels.py를 먼저 실행하세요.")
     reviewed = set((DATA / "reviewed.txt").read_text(encoding="utf-8").split()) if (DATA / "reviewed.txt").exists() else set()
     start = 0 if args.all else next((i for i, n in enumerate(names) if n not in reviewed), 0)
+    if args.name:
+        if args.name not in names:
+            raise SystemExit(f"review_list.txt에 없는 영상입니다: {args.name}")
+        start = names.index(args.name)
 
     root = tk.Tk()
     root.geometry("1400x1000")
